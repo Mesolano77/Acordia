@@ -40,6 +40,7 @@
   --key-white:#E9ECF2; --key-black:#0A0D14; --bass:#6FA3D6; --on-ink:#0E131D; color-scheme:dark }
 
 *{box-sizing:border-box}
+html,body{overflow-x:clip; overscroll-behavior-x:none}
 body{background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.5}
 .wrap{max-width:1180px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px))}
 header.top{padding-block:22px 14px; border-bottom:4px solid var(--felt)}
@@ -150,8 +151,9 @@ header.top p{margin:2px 0 0; color:var(--muted)}
 body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top, 0px); z-index:10; background:var(--bg)}
 .sheet{min-width:0; background:var(--surface); border:1px solid var(--line); border-radius:10px}
 @media (max-width:860px){
-  .grid{display:flex; flex-direction:column}
+  .grid{display:flex; flex-direction:column; align-items:stretch}
   .colL,.colR{display:contents}
+  .colL>*,.colR>*{min-width:0; max-width:100%}
   .o-tono{order:1} .o-lib{order:2} .o-add{order:3} .o-sheet{order:4} .o-ensayo{order:5} .o-teclado{order:6} .o-tuner{order:7} .o-metro{order:8} .o-ayuda{order:9}
 }
 .block{display:flex; flex-direction:column; gap:10px; min-width:0}
