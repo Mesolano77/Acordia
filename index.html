@@ -96,6 +96,25 @@ header.top p{margin:2px 0 0; color:var(--muted)}
 .mn i{font-style:normal; font-size:.75rem; color:var(--muted)}
 .mn.root{border-color:var(--bass)} .mn.root b{color:var(--bass)}
 .mn.char{border-color:var(--felt); background:var(--felt-soft)}
+.metro{display:flex; flex-direction:column; gap:10px}
+.mbpm{display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:8px; align-items:center}
+.m-val{font-variant-numeric:tabular-nums; white-space:nowrap}
+.m-dots{display:inline-flex; gap:6px; margin-left:4px}
+.m-dots i{width:14px; height:14px; border-radius:50%; border:2px solid var(--line); display:inline-block}
+.m-dots i.on{background:var(--ink); border-color:var(--ink)} .m-dots i.on.first{background:var(--felt); border-color:var(--felt)}
+.tunread{display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px; border:1px solid var(--line); border-radius:12px}
+.tnote{font:700 3rem var(--f-display); line-height:1}
+.tunread.ok .tnote,.tunread.ok .tmsg{color:#2E9B4F}
+.tmeter{position:relative; width:100%; height:16px; border-radius:8px; background:var(--line)}
+.tmeter .tz{position:absolute; left:45%; width:10%; top:0; bottom:0; background:rgba(46,155,79,.4); border-radius:4px}
+.tneedle{position:absolute; top:-5px; bottom:-5px; width:4px; margin-left:-2px; background:var(--felt); border-radius:2px; left:50%; transition:left .12s}
+.tunread.ok .tneedle{background:#2E9B4F}
+.tscale{display:flex; justify-content:space-between; width:100%; font-size:.75rem; color:var(--muted)}
+.tmsg{font-weight:600; text-align:center}
+.tstrs{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px}
+.tstr{display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 2px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); cursor:pointer; min-width:0}
+.tstr b{font-size:1.05rem} .tstr span{font-size:.66rem; color:var(--muted); text-align:center}
+.tstr.on{border-color:var(--felt); background:var(--felt-soft)}
 .legend{display:flex; flex-wrap:wrap; gap:14px; font-size:.82rem; color:var(--muted)}
 .sw{display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px}
 .sw.ch{background:var(--felt)} .sw.bs{background:var(--bass)}
@@ -133,7 +152,7 @@ body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-in
 @media (max-width:860px){
   .grid{display:flex; flex-direction:column}
   .colL,.colR{display:contents}
-  .o-tono{order:1} .o-lib{order:2} .o-add{order:3} .o-sheet{order:4} .o-ensayo{order:5} .o-teclado{order:6} .o-ayuda{order:7}
+  .o-tono{order:1} .o-lib{order:2} .o-add{order:3} .o-sheet{order:4} .o-ensayo{order:5} .o-teclado{order:6} .o-metro{order:7} .o-ayuda{order:8}
 }
 .block{display:flex; flex-direction:column; gap:10px; min-width:0}
 .label{font-family:var(--f-display); font-size:.72rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
@@ -286,6 +305,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
   <button class="tab" role="tab" id="tb-duracion" data-tab="duracion" aria-selected="false">Duración</button>
   <button class="tab" role="tab" id="tb-tono" data-tab="tono" aria-selected="false">Tono</button>
   <button class="tab" role="tab" id="tb-como" data-tab="como" aria-selected="false">Cómo se toca</button>
+  <button class="tab" role="tab" id="tb-afinador" data-tab="afinador" aria-selected="false">Afinador y metrónomo</button>
 </div></nav>
 
 <div class="wrap grid" id="tab-cancion" role="tabpanel" aria-labelledby="tb-cancion">
@@ -369,6 +389,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
       <div class="gtrbox" id="gtr" hidden></div>
       <div class="notes" id="notes">Toca un acorde para ver sus notas.</div>
     </section>
+    <section class="block card o-metro"><div class="label">Metrónomo</div><div class="metro"></div></section>
     <div class="o-ayuda">
     <details>
       <summary>Cómo traer una canción</summary>
@@ -502,6 +523,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
       <div class="row"><span class="pulse" id="pulse" aria-hidden="true"></span><button class="btn primary" id="play2">▶ Reproducir</button></div>
     </div>
   </section>
+  <section class="block card"><div class="label">Metrónomo</div><div class="metro"></div></section>
   <section class="block card" aria-labelledby="l-dur">
     <div class="label" id="l-dur">Cuánto dura cada acorde</div>
     <div class="sub">Debajo de cada línea de la letra está cada acorde como un bloque de color. Mientras más largo el bloque, más dura el acorde. Toca un bloque para cambiarlo. Con ▶ escuchas solo esa línea, repetida.</div>
@@ -631,6 +653,27 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
     </div>
     <div class="chips" id="dinv" hidden></div>
   </section>
+</div>
+
+<div class="wrap tab2" id="tab-afinador" role="tabpanel" aria-labelledby="tb-afinador" hidden>
+  <section class="block card">
+    <div class="label">Afinador de guitarra</div>
+    <div class="sub">Toca una cuerda al aire cerca del teléfono y gira la clavija hasta que la raya quede en el centro y diga <b>¡Afinada!</b></div>
+    <div class="sub"><b>Sobre el micrófono:</b> la primera vez el teléfono te preguntará si Acordia puede usarlo. Solo escucha mientras el afinador está encendido; el sonido se analiza en el mismo teléfono, no se graba ni se envía a ningún lado, y se apaga al salir de esta pestaña.</div>
+    <div class="row"><button class="btn primary" id="tunbtn" type="button">🎤 Encender afinador</button><div class="seg" id="tunmode" role="group" aria-label="Qué afinar"><button data-tmode="guitarra" aria-pressed="true" type="button">Guitarra</button><button data-tmode="libre" aria-pressed="false" type="button">Cualquier nota</button></div></div>
+    <div class="sub" id="tunerr" hidden></div>
+    <div class="tunread" id="tunread" hidden>
+      <div class="tnote" id="tnote">—</div>
+      <div class="tmeter"><span class="tz"></span><span class="tneedle" id="tneedle"></span></div>
+      <div class="tscale"><span>Baja</span><span>●</span><span>Alta</span></div>
+      <div class="sub" id="tfreq"></div>
+      <div class="tmsg" id="tmsg"></div>
+    </div>
+    <div class="label" style="margin-top:6px">Notas de referencia (afinación normal)</div>
+    <div class="sub">Toca un botón para oír cómo debe sonar cada cuerda, de la más gruesa (6.ª) a la más delgada (1.ª). Con el afinador encendido, se marca la cuerda que estás tocando.</div>
+    <div class="tstrs" id="tstrings"></div>
+  </section>
+  <section class="block card"><div class="label">Metrónomo</div><div class="metro"></div></section>
 </div>
 
 <div class="cpop" id="cpop" hidden role="dialog" aria-label="Acorde">
@@ -2452,6 +2495,145 @@ $('modecard').addEventListener('click',e=>{
   }
 });
 
+/* ---------- metrónomo ---------- */
+const metro=Object.assign({bpm:80,beats:4,vol:70},store.get('atril.metro',{}),{on:false,beat:0,next:0,timer:null,out:null,taps:[],wake:null});
+const METRO_HTML='<div class="row"><button class="btn primary m-go" type="button">▶ Encender</button><span class="m-dots" aria-hidden="true"></span></div>'+
+  '<div class="mbpm"><button class="btn m-dn" type="button" aria-label="Más lento">−</button><input type="range" class="m-bpm" min="30" max="220" aria-label="Pulsos por minuto"><button class="btn m-upb" type="button" aria-label="Más rápido">+</button><span class="m-val"></span></div>'+
+  '<div class="sub m-name"></div>'+
+  '<div class="row"><label class="sub">Compás <select class="m-beats" style="flex:0 1 auto"><option value="2">2/4</option><option value="3">3/4</option><option value="4">4/4</option><option value="6">6/8</option></select></label>'+
+  '<button class="btn m-tap" type="button">Marcar con el dedo</button><button class="btn m-song" type="button">Tempo de la canción</button></div>'+
+  '<div class="row"><label class="sub" style="flex:1 1 200px;display:flex;gap:8px;align-items:center">Volumen <input type="range" class="m-vol" min="0" max="100" style="flex:1"></label></div>';
+function tempoName(b){ return b<56?'Largo (muy lento)':b<66?'Adagio (lento)':b<80?'Andante (caminando)':b<100?'Moderato (moderado)':b<126?'Allegro (rápido)':b<160?'Vivace (muy rápido)':'Presto (rapidísimo)'; }
+function metroSave(){ store.set('atril.metro',{bpm:metro.bpm,beats:metro.beats,vol:metro.vol}); }
+function metroSync(){
+  document.querySelectorAll('.metro').forEach(m=>{
+    if(!m.dataset.ready){ m.innerHTML=METRO_HTML; m.dataset.ready='1'; }
+    m.querySelector('.m-bpm').value=metro.bpm; m.querySelector('.m-val').innerHTML='<b>'+metro.bpm+'</b> por minuto';
+    m.querySelector('.m-name').textContent=tempoName(metro.bpm);
+    m.querySelector('.m-beats').value=String(metro.beats); m.querySelector('.m-vol').value=metro.vol;
+    const go=m.querySelector('.m-go'); go.textContent=metro.on?'■ Detener':'▶ Encender'; go.classList.toggle('on',metro.on);
+    const d=m.querySelector('.m-dots'); if(d.childElementCount!==metro.beats) d.innerHTML='<i></i>'.repeat(metro.beats);
+  });
+  if(metro.out&&ctx) metro.out.gain.setTargetAtTime(Math.pow(metro.vol/100,1.6)*1.4,ctx.currentTime,0.02);
+}
+function metroTick(t,level){
+  const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.value=level===2?1760:level===1?1320:990;
+  g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(level===2?0.9:level===1?0.6:0.45,t+0.003); g.gain.exponentialRampToValueAtTime(0.0001,t+0.06);
+  o.connect(g); g.connect(metro.out); o.start(t); o.stop(t+0.08);
+}
+function metroFlash(k){ document.querySelectorAll('.metro .m-dots').forEach(d=>{ [...d.children].forEach((x,i)=>x.className=i===k?(k===0?'on first':'on'):''); }); }
+function metroLoop(){
+  const ahead=ctx.currentTime+0.12;
+  while(metro.next<ahead){
+    const k=metro.beat, lvl=k===0?2:(metro.beats===6&&k===3)?1:0;
+    metroTick(metro.next,lvl);
+    const when=(metro.next-ctx.currentTime)*1000; setTimeout(()=>{ if(metro.on) metroFlash(k); },Math.max(0,when));
+    const spb=60/metro.bpm*(metro.beats===6?0.5:1);
+    metro.next+=spb; metro.beat=(k+1)%metro.beats;
+  }
+}
+async function metroStart(){
+  ac(); if(!metro.out){ metro.out=ctx.createGain(); metro.out.connect(comp); }
+  metro.on=true; metro.beat=0; metro.next=ctx.currentTime+0.08; metroSync();
+  clearInterval(metro.timer); metro.timer=setInterval(metroLoop,25); metroLoop();
+  try{ if(navigator.wakeLock) metro.wake=await navigator.wakeLock.request('screen'); }catch(e){}
+}
+function metroStop(){ metro.on=false; clearInterval(metro.timer); metro.timer=null; metroSync(); metroFlash(-1); try{ if(metro.wake){ metro.wake.release(); metro.wake=null; } }catch(e){} }
+function metroSet(b){ metro.bpm=Math.max(30,Math.min(220,Math.round(b))); metroSave(); metroSync(); }
+document.addEventListener('click',e=>{
+  const m=e.target.closest('.metro'); if(!m) return;
+  if(e.target.closest('.m-go')){ metro.on?metroStop():metroStart(); return; }
+  if(e.target.closest('.m-dn')){ metroSet(metro.bpm-1); return; }
+  if(e.target.closest('.m-upb')){ metroSet(metro.bpm+1); return; }
+  if(e.target.closest('.m-song')){ metroSet(+$('bpm').value); toast('Metrónomo al tempo de la canción: '+metro.bpm+'.'); return; }
+});
+document.addEventListener('pointerdown',e=>{
+  if(!e.target.closest('.metro .m-tap')) return;
+  const now=performance.now(); if(metro.taps.length&&now-metro.taps[metro.taps.length-1]>2000) metro.taps=[];
+  metro.taps.push(now); if(metro.taps.length>6) metro.taps.shift();
+  if(metro.taps.length>=3){ const d=[]; for(let i=1;i<metro.taps.length;i++) d.push(metro.taps[i]-metro.taps[i-1]); d.sort((a,b)=>a-b); metroSet(60000/d[Math.floor(d.length/2)]); }
+  else toast('Sigue tocando al ritmo…');
+});
+document.addEventListener('input',e=>{
+  const m=e.target.closest('.metro'); if(!m) return;
+  if(e.target.matches('.m-bpm')) metroSet(+e.target.value);
+  if(e.target.matches('.m-vol')){ metro.vol=+e.target.value; metroSave(); metroSync(); }
+});
+document.addEventListener('change',e=>{
+  if(!e.target.matches('.metro .m-beats')) return;
+  metro.beats=+e.target.value; metro.beat=0; metroSave(); metroSync();
+});
+
+/* ---------- afinador ---------- */
+const GSTR=[[40,'6.ª','Mi'],[45,'5.ª','La'],[50,'4.ª','Re'],[55,'3.ª','Sol'],[59,'2.ª','Si'],[64,'1.ª','Mi']];
+const tun={on:false,stream:null,src:null,an:null,timer:null,hist:[],mode:'guitarra',buf:null};
+function tunStrings(){ $('tstrings').innerHTML=GSTR.map(([m,n,l],k)=>'<button class="tstr" type="button" data-ref="'+m+'"><b>'+esc(nm(m%12))+'</b><span>'+n+' · '+l+'</span></button>').join(''); }
+function yin(x,sr){
+  const n=x.length; let rms=0; for(let i=0;i<n;i++) rms+=x[i]*x[i]; rms=Math.sqrt(rms/n); if(rms<0.006) return {f:-1,rms};
+  const minL=Math.floor(sr/1100), maxL=Math.min(Math.ceil(sr/62),Math.floor(n/2)), W=n-maxL;
+  const d=new Float32Array(maxL+1);
+  for(let tau=1;tau<=maxL;tau++){ let s=0; for(let i=0;i<W;i++){ const v=x[i]-x[i+tau]; s+=v*v; } d[tau]=s; }
+  let run=0, best=-1, bestV=1e9; const c=new Float32Array(maxL+1); c[0]=1;
+  for(let tau=1;tau<=maxL;tau++){ run+=d[tau]; c[tau]=run>0?d[tau]*tau/run:1; }
+  for(let tau=minL;tau<=maxL;tau++){
+    if(c[tau]<0.15){ while(tau+1<=maxL&&c[tau+1]<c[tau]) tau++; best=tau; break; }
+    if(c[tau]<bestV){ bestV=c[tau]; }
+  }
+  if(best<0){ if(bestV>0.35) return {f:-1,rms}; for(let tau=minL;tau<=maxL;tau++) if(c[tau]===bestV){ best=tau; break; } }
+  let t=best; if(best>1&&best<maxL){ const a=c[best-1],b=c[best],g=c[best+1],den=a+g-2*b; if(den) t=best+0.5*(a-g)/den; }
+  return {f:sr/t,rms};
+}
+function tunShow(f){
+  const box=$('tunread');
+  if(f<=0){ box.classList.remove('ok'); $('tnote').textContent='—'; $('tfreq').textContent='Toca una cuerda…'; $('tmsg').textContent=''; $('tneedle').style.left='50%'; return; }
+  const midi=69+12*Math.log2(f/440);
+  let target=Math.round(midi), label='';
+  if(tun.mode==='guitarra'){ let bk=0; GSTR.forEach((s,k)=>{ if(Math.abs(midi-s[0])<Math.abs(midi-GSTR[bk][0])) bk=k; }); if(Math.abs(midi-GSTR[bk][0])<4){ target=GSTR[bk][0]; label='Cuerda '+GSTR[bk][1]+' ('+GSTR[bk][2]+')'; }
+    document.querySelectorAll('.tstr').forEach(b=>b.classList.toggle('on',+b.dataset.ref===target)); }
+  const cents=Math.round(100*(midi-target)), cl=Math.max(-50,Math.min(50,cents));
+  $('tnote').textContent=nm(((target%12)+12)%12)+(Math.floor(target/12)-1);
+  $('tfreq').textContent=(label?label+' · ':'')+f.toFixed(1)+' Hz · '+(cents>0?'+':'')+cents+' cents';
+  $('tneedle').style.left=(50+cl)+'%';
+  const ok=Math.abs(cents)<=5; box.classList.toggle('ok',ok);
+  $('tmsg').textContent=ok?'¡Afinada!':Math.abs(cents)>40&&tun.mode!=='guitarra'?'':cents<0?'Está baja: aprieta la clavija para subirla.':'Está alta: afloja la clavija para bajarla.';
+}
+function tunLoop(){
+  if(!tun.on) return;
+  tun.an.getFloatTimeDomainData(tun.buf);
+  const r=yin(tun.buf,ctx.sampleRate);
+  if(r.f>0){ tun.hist.push(r.f); if(tun.hist.length>5) tun.hist.shift(); const s=tun.hist.slice().sort((a,b)=>a-b); tunShow(s[Math.floor(s.length/2)]); tun.quiet=0; }
+  else if(++tun.quiet>12){ tun.hist=[]; tunShow(-1); }
+}
+async function tunStart(){
+  ac();
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ tunFail('nomedia'); return; }
+  $('tunbtn').disabled=true; $('tunbtn').textContent='Pidiendo el micrófono…';
+  try{
+    tun.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+  }catch(err){ $('tunbtn').disabled=false; $('tunbtn').textContent='🎤 Encender afinador'; tunFail(err&&err.name); return; }
+  tun.src=ctx.createMediaStreamSource(tun.stream); tun.an=ctx.createAnalyser(); tun.an.fftSize=4096; tun.src.connect(tun.an);
+  tun.buf=new Float32Array(tun.an.fftSize); tun.on=true; tun.hist=[]; tun.quiet=0;
+  $('tunbtn').disabled=false; $('tunbtn').textContent='■ Apagar afinador'; $('tunerr').hidden=true; $('tunread').hidden=false;
+  tunShow(-1); clearInterval(tun.timer); tun.timer=setInterval(tunLoop,60);
+}
+function tunStop(){
+  tun.on=false; clearInterval(tun.timer); tun.timer=null;
+  try{ tun.stream&&tun.stream.getTracks().forEach(t=>t.stop()); }catch(e){} tun.stream=null;
+  try{ tun.src&&tun.src.disconnect(); }catch(e){}
+  $('tunbtn').textContent='🎤 Encender afinador'; $('tunread').hidden=true; document.querySelectorAll('.tstr.on').forEach(b=>b.classList.remove('on'));
+}
+function tunFail(kind){
+  const inClaude=!!window.claude||window.self!==window.top;
+  let m;
+  if(kind==='NotAllowedError'||kind==='SecurityError') m=inClaude?'Dentro de Claude esta página no puede usar el micrófono. Abre la app pública de Acordia (mesolano77.github.io/acordia) para usar el afinador; aquí puedes afinar de oído con los botones de las cuerdas.':'El micrófono no tiene permiso. En el iPhone: toca <b>aA</b> en la barra de Safari → <b>Ajustes del sitio web</b> → <b>Micrófono</b> → <b>Permitir</b>, y vuelve a tocar Encender afinador.';
+  else if(kind==='NotFoundError') m='No encontré un micrófono en este dispositivo.';
+  else m='Este navegador no deja usar el micrófono aquí. Abre la app pública de Acordia en Safari o Chrome para usar el afinador; aquí puedes afinar de oído con los botones de las cuerdas.';
+  $('tunerr').innerHTML=m; $('tunerr').hidden=false;
+}
+$('tunbtn').onclick=()=>{ tun.on?tunStop():tunStart(); };
+$('tunmode').addEventListener('click',e=>{ const b=e.target.closest('[data-tmode]'); if(!b) return; tun.mode=b.dataset.tmode; $('tunmode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); $('tstrings').hidden=tun.mode!=='guitarra'; tun.hist=[]; });
+$('tstrings').addEventListener('click',e=>{ const b=e.target.closest('[data-ref]'); if(!b) return; ac(); const t=ctx.currentTime+0.03; gnote(+b.dataset.ref,t,4,0.32); });
+
 /* ---------- enviar por enlace, copia de Mis canciones ---------- */
 const PUBLIC_URL='https://mesolano77.github.io/acordia/';
 const incomingHash=location.hash;
@@ -2588,7 +2770,7 @@ $('copyatajo').onclick=()=>{
 };
 
 /* ---------- pestañas ---------- */
-const TABS=['cancion','duracion','tono','como'];
+const TABS=['cancion','duracion','tono','como','afinador'];
 function tabFromHash(){ const h=location.hash.slice(1); return h==='acordes'?'duracion':(TABS.includes(h)?h:'cancion'); }
 function showTab(t){
   if(t==='acordes') t='duracion';
@@ -2596,6 +2778,8 @@ function showTab(t){
   if(!TABS.includes(t)) t='cancion';
   TABS.forEach(k=>{ $('tab-'+k).hidden=(k!==t); $('tb-'+k).setAttribute('aria-selected',k===t); });
   try{ if(t!=='cancion') history.replaceState(null,'','#'+t); else history.replaceState(null,'',location.pathname+location.search); }catch(e){}
+  if(t!=='afinador'&&typeof tun!=='undefined'&&tun.on) tunStop();
+  if(t==='afinador'){ tunStrings(); metroSync(); }
   if(t==='duracion'){ renderBars(); renderLines(); }
   if(t==='tono') renderTono();
   if(t==='como'){ renderSongChips(); if(!dict.root&&dict.root!==0) pickFirstSongChord(); }
@@ -2614,7 +2798,7 @@ function load(){
   const mv=String(state.meter||4); $('meter').value=mv; if([...$('beats').options].some(o=>o.value===mv)) $('beats').value=mv;
   selIndex=0; prevVoice=null; parse(); render(); persist();
 }
-buildPiano(); setInst(inst,true); load(); renderSaved();
+buildPiano(); setInst(inst,true); metroSync(); tunStrings(); load(); renderSaved();
 appReady=true; render(); showTab(tabFromHash());
 { const c=linkCode(incomingHash); if(c) receiveCode(c); }
 })();
