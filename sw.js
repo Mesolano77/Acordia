@@ -1,8 +1,8 @@
 /* Acordia — service worker (generado por tools/build_web.py; no editar en web/) */
-const VERSION = '7b5fe71276af';
+const VERSION = '038d407281c3';
 const CACHE = 'acordia-' + VERSION;
 const FONTS = 'acordia-fuentes';
-const SHELL = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "favicon-32.png", "lib/jspdf.umd.min.js", "lib/tesseract.min.js", "piano/A2.mp3", "piano/A3.mp3", "piano/A4.mp3", "piano/A5.mp3", "piano/C2.mp3", "piano/C3.mp3", "piano/C4.mp3", "piano/C5.mp3", "piano/C6.mp3", "piano/Ds2.mp3", "piano/Ds3.mp3", "piano/Ds4.mp3", "piano/Ds5.mp3", "piano/Fs2.mp3", "piano/Fs3.mp3", "piano/Fs4.mp3", "piano/Fs5.mp3"];
+const SHELL = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "favicon-32.png", "lib/jspdf.umd.min.js", "lib/pdf.min.js", "lib/pdf.worker.min.js", "lib/tesseract.min.js", "piano/A2.mp3", "piano/A3.mp3", "piano/A4.mp3", "piano/A5.mp3", "piano/C2.mp3", "piano/C3.mp3", "piano/C4.mp3", "piano/C5.mp3", "piano/C6.mp3", "piano/Ds2.mp3", "piano/Ds3.mp3", "piano/Ds4.mp3", "piano/Ds5.mp3", "piano/Fs2.mp3", "piano/Fs3.mp3", "piano/Fs4.mp3", "piano/Fs5.mp3"];
 const OCR = ["ocr/lang/spa-data.wasm", "ocr/tesseract-core-lstm.wasm.js", "ocr/tesseract-core-simd-lstm.wasm.js", "ocr/worker.min.js"];
 
 self.addEventListener('install', e => {

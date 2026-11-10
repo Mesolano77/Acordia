@@ -10,3 +10,4 @@
   Licencia Apache 2.0. https://github.com/tesseract-ocr/tessdata_best
 - **Fuentes**: IBM Plex Mono, Inter y Space Grotesk, cargadas desde Google Fonts (SIL Open Font License).
 - **jsPDF 2.5.1** — generación del PDF, cargado desde cdnjs al exportar. Licencia MIT. https://github.com/parallax/jsPDF
+- **PDF.js 3.11.174** (Mozilla, paquete npm `pdfjs-dist`) — para abrir PDF (p. ej. el de Ultimate Guitar). En Claude se carga desde cdnjs; en la app pública, desde `app/lib/pdf.min.js` y `app/lib/pdf.worker.min.js`. Licencia Apache 2.0. https://github.com/mozilla/pdf.js

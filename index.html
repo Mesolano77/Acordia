@@ -469,6 +469,8 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
             <button class="btn primary" id="pasteclean">Pegar y limpiar</button>
             <button class="btn" id="cleanbox">Limpiar el texto de abajo</button>
           </div>
+          <div class="row"><label class="btn filebtn" for="pdfin">📄 Abrir PDF</label><input type="file" id="pdfin" accept="application/pdf,.pdf" class="vh"><span class="sub">El PDF de Ultimate Guitar (Print or Download PDF → Guardar en Archivos) u otro cancionero.</span></div>
+          <div class="sub" id="pdfstat" role="status"></div>
           <div class="sub" id="pastehint" hidden>Este navegador no deja leer el portapapeles con un botón. Mantén el dedo en el cuadro de abajo y elige <b>Pegar</b>: Acordia lo limpia sola.</div>
           <details id="atajo">
             <summary>Atajo de iPhone: “Mandar a Acordia”</summary>
@@ -2731,7 +2733,7 @@ function subFix(x,sr,f){
   }
   return best;
 }
-const APP_VER='20261110-1550';
+const APP_VER='20261110-1555';
 /* modo guitarra: qué cuerda suena, mirando la serie completa de armónicos de cada cuerda */
 const GSTR_F=[40,45,50,55,59,64].map(m=>440*Math.pow(2,(m-69)/12));
 function gtrPick(x,sr,a4){
@@ -2980,6 +2982,61 @@ $('libimport').onchange=async e=>{
     if(typeof syncPushAll==='function') syncPushAll();
     toast('Copia importada: '+r.added+' nuevas, '+r.updated+' actualizadas.');
   }catch(err){ toast('Ese archivo no es una copia de Acordia.'); }
+};
+
+/* ---------- abrir PDF (p. ej. "Print or Download PDF" de Ultimate Guitar) ---------- */
+let pdfJsP=null;
+function loadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(pdfJsP) return pdfJsP;
+  pdfJsP=new Promise((res,rej)=>{
+    const sc=document.createElement('script'); sc.src='lib/pdf.min.js';
+    sc.onload=()=>{ try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdf.worker.min.js'; res(window.pdfjsLib); }catch(e){ rej(e); } };
+    sc.onerror=()=>{ pdfJsP=null; rej(new Error('net')); };
+    document.head.appendChild(sc);
+  });
+  return pdfJsP;
+}
+/* arma las líneas con su posición, para que cada acorde quede sobre la sílaba correcta */
+async function pdfPages(buf){
+  const lib=await loadPdfJs(), doc=await lib.getDocument({data:buf}).promise, out=[]; let chars=0;
+  for(let p=1;p<=doc.numPages;p++){
+    const page=await doc.getPage(p), tc=await page.getTextContent();
+    const items=tc.items.filter(it=>it.str&&it.str.trim());
+    const ws=[]; items.forEach(it=>{ const t=it.str; if(t.length>=2&&it.width>0) ws.push(it.width/t.length); });
+    ws.sort((a,b)=>a-b); const cw=ws.length?ws[Math.floor(ws.length/2)]:5;
+    const rows=[];
+    items.forEach(it=>{ const x=it.transform[4], y=it.transform[5], h=Math.abs(it.transform[3])||it.height||10;
+      let r=rows.find(q=>Math.abs(q.y-y)<Math.max(2,Math.min(q.h,h)*0.45)); if(!r){ r={y,h,its:[]}; rows.push(r); } r.its.push({x,s:it.str}); });
+    rows.sort((a,b)=>b.y-a.y);
+    const minX=rows.length?Math.min(...rows.map(r=>Math.min(...r.its.map(i=>i.x)))):0;
+    rows.forEach((r,ri)=>{
+      r.its.sort((a,b)=>a.x-b.x); let line='';
+      r.its.forEach(i=>{ let col=Math.max(0,Math.round((i.x-minX)/cw)); if(col<line.length) col=line.length+(line.length&&!/\s$/.test(line)&&!/^\s/.test(i.s)?1:0); line=line.padEnd(col,' ')+i.s; });
+      if(ri>0&&(rows[ri-1].y-r.y)>(r.h||10)*2.3) out.push('');
+      out.push(line.replace(/\s+$/,'')); chars+=line.trim().length;
+    });
+    out.push('');
+  }
+  return {doc,text:out.join('\n'),chars};
+}
+$('pdfin').onchange=async e=>{
+  const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return;
+  const st=$('pdfstat'); st.textContent='Abriendo el PDF…';
+  try{
+    const r=await pdfPages(await f.arrayBuffer());
+    if(r.chars>=20){ st.textContent='PDF leído ('+r.doc.numPages+' página'+(r.doc.numPages>1?'s':'')+').'; applyCleaned(r.text); return; }
+    /* PDF hecho de imágenes (escaneado): se pasa cada página al lector de fotos */
+    st.textContent='Este PDF es una imagen. Preparando sus páginas para leerlas como fotos…';
+    const files=[];
+    for(let p=1;p<=r.doc.numPages;p++){
+      const page=await r.doc.getPage(p), vp=page.getViewport({scale:2}), c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+      await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+      const b=await new Promise(res=>c.toBlob(res,'image/png')); files.push(new File([b],(f.name||'pdf').replace(/\.pdf$/i,'')+'-p'+p+'.png',{type:'image/png'}));
+    }
+    addFiles(files); $('ed').open=true; $('photobox').scrollIntoView({block:'start'});
+    st.textContent='Listo: agregué '+files.length+' página'+(files.length>1?'s':'')+' a "Desde fotos". Toca Leer y unir en este orden.';
+  }catch(err){ st.textContent=err&&err.message==='net'?'No se pudo cargar el lector de PDF (revisa la conexión a internet).':'No pude abrir ese PDF. Si está protegido o dañado, prueba con Pegar y limpiar.'; }
 };
 
 /* ---------- atajo de iPhone ---------- */
