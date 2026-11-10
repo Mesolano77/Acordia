@@ -161,6 +161,10 @@ pre#chart{margin:0; font-family:var(--f-mono); font-size:var(--chart-size); line
 pre#chart .cl{color:var(--chord); font-weight:600}
 .ch{font:inherit; color:var(--chord); background:none; border:0; padding:0; margin:0; border-radius:3px; cursor:pointer}
 .ch:hover{background:var(--felt-soft)}
+pre#chart .cl .ch{touch-action:pan-y; cursor:grab}
+.ch.drag{position:relative; z-index:3; cursor:grabbing; background:var(--felt); color:var(--on-ink); box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.ch.drag::after{content:""; position:absolute; left:0; top:100%; height:1.6em; border-left:2px dashed var(--felt)}
+.draghint{padding:10px 18px 0; font-size:.85rem}
 .ch.on{background:var(--felt); color:var(--on-ink)}
 .empty{color:var(--muted); font-family:var(--f-body); white-space:normal}
 details{border-top:1px solid var(--line); padding-top:10px}
@@ -305,6 +309,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
           <li>Selecciona desde el primer acorde hasta el final y copia.</li>
           <li>Pulsa <b>Nueva</b>, escribe el título y pega en el cuadro de la canción. Desde una foto: en el iPhone usa Texto en Vivo, Seleccionar todo y Copiar.</li>
           <li>Si la canción sigue en otra foto, pulsa <b>+ Siguiente foto</b>: verás dónde terminó la anterior. Copia desde ahí, pega y pulsa <b>Unir</b>. Repite con cada foto.</li>
+          <li>Si un acorde quedó corrido, arrástralo con el dedo o el mouse hasta la palabra correcta.</li>
           <li>Elige el tono del coro arriba, o súbelo y bájalo de medio tono en medio tono.</li>
           <li>Pulsa <b>Dar el tono</b> antes de cantar y <b>Reproducir</b> para ensayar con los acordes.</li>
         </ol>
@@ -387,6 +392,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
       <div class="sub" id="exportsum">Elige el formato. La foto sirve para mandarla por WhatsApp; el PDF junta toda la canción en un archivo para imprimir o leer en la tablet.</div>
       <div id="exportlist" class="explist"></div>
     </div>
+    <div class="sub draghint">Consejo: si un acorde no está sobre la palabra correcta, arrástralo con el dedo o el mouse y suéltalo encima de la palabra.</div>
     <div class="chart-scroll"><pre id="chart"></pre></div>
   </main>
   </div>
@@ -537,13 +543,13 @@ Ejemplo para probar Acordia: borra esto y pega tu canción.
 
 Intro: G-C-G-D
 
-G                 G7        C        G
+  G     G7         C         G
 Amazing grace! How sweet the sound
-G                        D
+     G                   D
 That saved a wretch like me!
-G               G7       C         G
+  G        G7        C      G
 I once was lost, but now am found;
-Em        D          G
+    Em         D     G
 Was blind, but now I see.
 
 Final: //Em-D-C-D// G`;
@@ -1098,6 +1104,7 @@ $('undo').onclick=()=>{
   $('undo').disabled=!undoStack.length; toast('Cambio deshecho.');
 };
 $('chart').addEventListener('click',e=>{
+  if(dragJust){ dragJust=false; return; }
   if(editMode){
     const dl=e.target.closest('[data-dl]'), el=e.target.closest('[data-el]'), ch=e.target.closest('.ch');
     if(dl){ const L=srcLines(); L.splice(+dl.dataset.dl,1); commitLines(L,'Línea borrada.'); }
@@ -1740,6 +1747,42 @@ $('dslow').onclick=()=>{ if(dict.root!=null) playAbs(absVoicing(dict.root,interv
 $('dinvbtn').onclick=()=>{ $('dinv').hidden=!$('dinv').hidden; if(!$('dinv').hidden) renderInv(); };
 $('usetiming').addEventListener('change',()=>renderLines());
 
+/* ---------- arrastrar acordes sobre la letra ---------- */
+let drag=null, dragJust=false;
+function charW(){ const sp=document.createElement('span'); sp.textContent='MMMMMMMMMM'; sp.style.visibility='hidden'; $('chart').appendChild(sp); const w=sp.getBoundingClientRect().width/10; sp.remove(); return w||9.6; }
+$('chart').addEventListener('pointerdown',e=>{
+  const b=e.target.closest('.cl .ch'); if(!b||e.button>0) return;
+  const r=chordRefs[+b.dataset.i]; if(!r||!parsed.meta[r.li].isChordLine) return;
+  drag={b,i:+b.dataset.i,li:r.li,ti:r.ti,x0:e.clientX,y0:e.clientY,cw:charW(),moved:false,d:0,id:e.pointerId};
+});
+$('chart').addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.id) return;
+  const dx=e.clientX-drag.x0, dy=e.clientY-drag.y0;
+  if(!drag.moved){ if(Math.abs(dx)<7) { if(Math.abs(dy)>10) drag=null; return; } drag.moved=true; try{ drag.b.setPointerCapture(e.pointerId); }catch(err){} drag.b.classList.add('drag'); stop(); }
+  e.preventDefault();
+  const x=parsed.meta[drag.li].toks[drag.ti];
+  drag.d=Math.max(-x.i,Math.round(dx/drag.cw));
+  drag.b.style.transform='translateX('+(drag.d*drag.cw)+'px)';
+});
+function endDrag(e,cancel){
+  if(!drag||(e&&e.pointerId!==drag.id)) return;
+  const d=drag; drag=null;
+  if(!d.moved) return;
+  dragJust=true; setTimeout(()=>{ dragJust=false; },350);
+  d.b.classList.remove('drag'); d.b.style.transform='';
+  if(cancel||!d.d) return;
+  const lines=srcLines(); const line=lines[d.li]; const x=parsed.meta[d.li].toks[d.ti];
+  const from=x.i, len=x.t.length, to=from+d.d;
+  const blanked=line.slice(0,from)+' '.repeat(len)+line.slice(from+len);
+  const padded=blanked.padEnd(to+len+1,' ');
+  const zone=padded.slice(Math.max(0,to-1),to+len+1);
+  if(zone.trim()){ toast('Ahí ya hay otro acorde. Suéltalo en un espacio libre.'); return; }
+  lines[d.li]=(padded.slice(0,to)+x.t+padded.slice(to+len)).replace(/\s+$/,'');
+  commitLines(lines,'Acorde movido. Si te equivocaste, toca Deshacer.');
+  highlight(d.i,false);
+}
+$('chart').addEventListener('pointerup',e=>endDrag(e,false));
+$('chart').addEventListener('pointercancel',e=>endDrag(e,true));
 /* ---------- pestañas ---------- */
 const TABS=['cancion','duracion','tono','como'];
 function tabFromHash(){ const h=location.hash.slice(1); return h==='acordes'?'duracion':(TABS.includes(h)?h:'cancion'); }
