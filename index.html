@@ -248,6 +248,10 @@ pre#chart .w.pick{background:var(--felt); color:var(--on-ink)}
 .lib .lt span{font-size:.78rem; color:var(--muted)}
 .lib .la{display:flex; gap:4px}
 .lib .la .btn{padding:4px 8px}
+.qtone{display:flex; align-items:center; gap:8px; width:100%; padding-top:8px; border-top:1px dashed var(--line)}
+.qtone .btn{flex:0 0 auto; font-weight:700; padding:8px 14px}
+.qkey{flex:1 1 auto; text-align:center; font-weight:700; color:var(--chord); min-width:0}
+.qkey small{display:block; font-weight:500; color:var(--muted); font-size:.75rem}
 .bignew{width:100%; font-size:1.05rem; padding:12px 16px; font-weight:700}
 .sharebox{display:flex; flex-direction:column; gap:6px; border:1px dashed var(--felt); border-radius:8px; padding:8px}
 .sharebox input{width:100%; font-size:.8rem}
@@ -527,6 +531,11 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
         <button class="btn" id="undo" disabled>Deshacer</button>
         <button class="btn primary" id="exportbtn">Exportar</button>
         <button class="btn" id="sendcur">Enviar enlace</button>
+      </div>
+      <div class="qtone" role="group" aria-label="Cambiar el tono">
+        <button class="btn" id="qdown" type="button" aria-label="Bajar medio tono">− ½ tono</button>
+        <span class="qkey" id="qkey">—</span>
+        <button class="btn" id="qup" type="button" aria-label="Subir medio tono">+ ½ tono</button>
       </div>
     </div>
     <div class="edithint" id="edithint" hidden>Modo edición: <b>✕</b> borra la línea, <b>✎</b> la corriges a mano y tocar un acorde lo quita. <b>Deshacer</b> revierte el último cambio.</div>
@@ -940,12 +949,13 @@ function tonosTxt(s){
   return (s>0?'+':'−')+a+' semitono'+(a>1?'s':'')+' ('+tt+' '+word+(s>0?' arriba':' abajo')+')';
 }
 function renderKey(){
-  if(!parsed.chords.length){ $('keyline').textContent='Sin acordes detectados'; $('shiftline').textContent=''; $('capoline').textContent=''; fillTargets(); return; }
+  if(!parsed.chords.length){ $('qkey').textContent='—'; $('keyline').textContent='Sin acordes detectados'; $('shiftline').textContent=''; $('capoline').textContent=''; fillTargets(); return; }
   const shiftSaved=state.shift;
   state.shift=0; const orig=keyLabel(parsed.origKey,parsed.minor).replace(/ <span.*$/,'');
   state.shift=shiftSaved;
   const T=(parsed.origKey+state.shift+120)%12;
   $('keyline').innerHTML='<b>'+keyLabel(T,parsed.minor)+'</b>';
+  $('qkey').innerHTML=(parsed.minor?nmLong(T+9)+' menor':nmLong(T)+' mayor')+'<small>'+esc(tonosTxt(state.shift))+'</small>';
   $('shiftline').textContent='Original: '+orig+' · '+tonosTxt(state.shift);
   const shapes=[0,9,7,4,2]; let best=null;
   shapes.forEach(s=>{ const c=(T-s+12)%12; if(c<=7&&(best==null||c<best.c)) best={c,s}; });
@@ -1291,6 +1301,8 @@ $('tapcancel').onclick=()=>{ taps=null; $('tapbox').hidden=true; $('tapstart').d
 function persist(){ store.set('atril.draft',{title:state.title,text:state.text,shift:state.shift,nota:state.nota,size:state.size,timing:state.timing||null,rhythm:state.rhythm||null,meter:state.meter||4,libId:state.libId||null}); if(typeof updateSaveState==='function') updateSaveState(); }
 function setShift(s){ state.shift=norm(s); prevVoice=null; render(); persist(); }
 $('up').onclick=()=>setShift(state.shift+1);
+$('qup').onclick=()=>{ setShift(state.shift+1); toast('Tono: '+$('qkey').firstChild.textContent); };
+$('qdown').onclick=()=>{ setShift(state.shift-1); toast('Tono: '+$('qkey').firstChild.textContent); };
 $('down').onclick=()=>setShift(state.shift-1);
 $('reset').onclick=()=>setShift(0);
 $('target').onchange=e=>setShift(+e.target.value-parsed.origKey);
@@ -2733,7 +2745,7 @@ function subFix(x,sr,f){
   }
   return best;
 }
-const APP_VER='20261110-1555';
+const APP_VER='20261110-1602';
 /* modo guitarra: qué cuerda suena, mirando la serie completa de armónicos de cada cuerda */
 const GSTR_F=[40,45,50,55,59,64].map(m=>440*Math.pow(2,(m-69)/12));
 function gtrPick(x,sr,a4){
