@@ -164,6 +164,15 @@ pre#chart .cl{color:var(--chord); font-weight:600}
 pre#chart .cl .ch{touch-action:pan-y; cursor:grab}
 .ch.drag{position:relative; z-index:3; cursor:grabbing; background:var(--felt); color:var(--on-ink); box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .ch.drag::after{content:""; position:absolute; left:0; top:100%; height:1.6em; border-left:2px dashed var(--felt)}
+pre#chart .w{cursor:pointer; border-radius:3px}
+pre#chart .w:hover{background:var(--felt-soft)}
+pre#chart .w.pick{background:var(--felt); color:var(--on-ink)}
+.cpop{position:absolute; z-index:30; width:min(340px,calc(100vw - 24px)); background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 32px rgba(0,0,0,.28); padding:12px; display:flex; flex-direction:column; gap:10px}
+.cpop .ph{display:flex; justify-content:space-between; align-items:center; gap:8px; font-weight:600}
+.cpop .x{border:0; background:none; font-size:1.3rem; line-height:1; color:var(--muted); cursor:pointer; padding:2px 6px}
+.cpop form{display:flex; gap:6px}
+.cpop input{flex:1 1 auto; min-width:0; font:600 1rem var(--f-mono)}
+.cpop .del{color:#B42318; border-color:#F2B8B5}
 .draghint{padding:10px 18px 0; font-size:.85rem}
 .ch.on{background:var(--felt); color:var(--on-ink)}
 .empty{color:var(--muted); font-family:var(--f-body); white-space:normal}
@@ -309,7 +318,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
           <li>Selecciona desde el primer acorde hasta el final y copia.</li>
           <li>Pulsa <b>Nueva</b>, escribe el título y pega en el cuadro de la canción. Desde una foto: en el iPhone usa Texto en Vivo, Seleccionar todo y Copiar.</li>
           <li>Si la canción sigue en otra foto, pulsa <b>+ Siguiente foto</b>: verás dónde terminó la anterior. Copia desde ahí, pega y pulsa <b>Unir</b>. Repite con cada foto.</li>
-          <li>Si un acorde quedó corrido, arrástralo con el dedo o el mouse hasta la palabra correcta.</li>
+          <li>Si un acorde quedó corrido, arrástralo con el dedo o el mouse hasta la palabra correcta. Si falta uno, toca la palabra y escríbelo. Si sobra, tócalo y elige Eliminar.</li>
           <li>Elige el tono del coro arriba, o súbelo y bájalo de medio tono en medio tono.</li>
           <li>Pulsa <b>Dar el tono</b> antes de cantar y <b>Reproducir</b> para ensayar con los acordes.</li>
         </ol>
@@ -392,7 +401,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
       <div class="sub" id="exportsum">Elige el formato. La foto sirve para mandarla por WhatsApp; el PDF junta toda la canción en un archivo para imprimir o leer en la tablet.</div>
       <div id="exportlist" class="explist"></div>
     </div>
-    <div class="sub draghint">Consejo: si un acorde no está sobre la palabra correcta, arrástralo con el dedo o el mouse y suéltalo encima de la palabra.</div>
+    <div class="sub draghint">Consejos: <b>arrastra</b> un acorde para ponerlo sobre la palabra correcta. <b>Toca una palabra</b> para agregarle un acorde encima. <b>Toca un acorde</b> para oírlo, cambiarlo o eliminarlo.</div>
     <div class="chart-scroll"><pre id="chart"></pre></div>
   </main>
   </div>
@@ -520,6 +529,13 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
   </section>
 </div>
 
+<div class="cpop" id="cpop" hidden role="dialog" aria-label="Acorde">
+  <div class="ph"><span id="cpopt"></span><button class="x" id="cpopx" aria-label="Cerrar">×</button></div>
+  <form id="cpopf"><input type="text" id="cpopi" placeholder="Escribe el acorde: C, Am, G7…" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn primary" type="submit" id="cpopok">Agregar</button></form>
+  <div class="sub" id="cpops">Acordes del tono:</div>
+  <div class="chips" id="cpopc"></div>
+  <div class="row" id="cpopact"></div>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="lib/tesseract.min.js"></script>
@@ -656,12 +672,17 @@ function parse(){
 }
 
 let editMode=false, chordRefs=[], exportLines=[], undoStack=[], appReady=false;
+function wordsHTML(line,li){
+  let out='',pos=0; const re=/\S+/g; let w;
+  while((w=re.exec(line))){ out+=esc(line.slice(pos,w.index))+'<span class="w" data-l="'+li+'" data-c="'+w.index+'">'+esc(w[0])+'</span>'; pos=w.index+w[0].length; }
+  return out+esc(line.slice(pos));
+}
 function render(){
   let html='',plain='',idx=0; chordRefs=[]; exportLines=[];
   parsed.meta.forEach((m,li)=>{
     let lh='';
     if(m.isMarker){ lh='<span class="mk">'+esc(m.line.trim().replace(/···/g,'—'))+'</span>'; exportLines.push({text:'',chord:false,marker:true}); }
-    else if(!m.any){ lh=esc(m.line); plain+=m.line; exportLines.push({text:m.line,chord:false}); }
+    else if(!m.any){ lh=m.line.trim()?wordsHTML(m.line,li):esc(m.line); plain+=m.line; exportLines.push({text:m.line,chord:false}); }
     else{
       let out='',h='';
       m.toks.forEach((x,ti)=>{
@@ -1069,6 +1090,12 @@ function commitLines(lines,msg){
   state.text=lines.join('\n'); $('src').value=state.text; selIndex=0; prevVoice=null;
   parse(); render(); persist(); $('undo').disabled=false; if(msg) toast(msg);
 }
+function shiftRhythm(op,idx){
+  const B=barBeats(), N=parsed.chords.length;
+  if(state.rhythm&&state.rhythm.beats){ const b=state.rhythm.beats; if(op==='add'&&b.length===N-1){ b.splice(idx,0,B); state.rhythm.count=N; } else if(op==='del'&&b.length===N+1){ b.splice(idx,1); state.rhythm.count=N; } }
+  if(state.timing&&state.timing.d){ const d=state.timing.d; if(op==='add'&&d.length===N-1){ d.splice(idx,0,d[Math.max(0,idx-1)]||1); state.timing.count=N; } else if(op==='del'&&d.length===N+1){ d.splice(idx,1); state.timing.count=N; } }
+  persist(); render();
+}
 function deleteChord(i){
   const ref=chordRefs[i]; if(!ref) return;
   const lines=srcLines(); const x=parsed.meta[ref.li].toks[ref.ti]; const a=x.a;
@@ -1077,7 +1104,7 @@ function deleteChord(i){
   if(!/[A-Za-z]/.test(tok)) tok='';
   const line=lines[ref.li];
   lines[ref.li]=(line.slice(0,x.i)+tok+' '.repeat(Math.max(0,x.t.length-tok.length))+line.slice(x.i+x.t.length)).replace(/\s+$/,'');
-  commitLines(lines,'Acorde quitado.');
+  commitLines(lines,'Acorde quitado. Si te equivocaste, toca Deshacer.'); shiftRhythm('del',i);
 }
 function editLine(li){
   const ctl=document.querySelector('.lbtn[data-el="'+li+'"]'); if(!ctl) return;
@@ -1112,10 +1139,13 @@ $('chart').addEventListener('click',e=>{
     else if(ch){ deleteChord(+ch.dataset.i); }
     return;
   }
+  const w=e.target.closest('.w');
+  if(w){ openAddPop(w); return; }
   const b=e.target.closest('.ch'); if(!b) return;
   const i=+b.dataset.i; selIndex=i;
   if(playing){ stop(); selIndex=i; start(); return; }
   ac(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.02,2.2,'block',4); highlight(i);
+  if(chordRefs[i]&&parsed.meta[chordRefs[i].li].isChordLine) openChordPop(b,i);
 });
 $('bigger').onclick=()=>{ state.size=Math.min(30,state.size+2); render(); persist(); };
 $('smaller').onclick=()=>{ state.size=Math.max(11,state.size-2); render(); persist(); };
@@ -1783,11 +1813,96 @@ function endDrag(e,cancel){
 }
 $('chart').addEventListener('pointerup',e=>endDrag(e,false));
 $('chart').addEventListener('pointercancel',e=>endDrag(e,true));
+/* ---------- agregar, cambiar y eliminar acordes tocando la letra ---------- */
+let pop=null;
+function srcName(pc){ const t=FLAT_KEYS.has(parsed.origKey)?FLAT:SHARP; return t[((pc%12)+12)%12]; }
+function typedToSource(q){
+  q=q.trim().replace(/\s+/g,''); if(!q) return null;
+  const c=parseChord(q[0].toUpperCase()+q.slice(1)); if(!c) return null;
+  const r=c.root-state.shift, b=c.bass==null?null:c.bass-state.shift;
+  return srcName(r)+c.suf+(b==null?'':'/'+srcName(b));
+}
+function keyChips(){
+  if(!parsed.chords.length) return [];
+  const {tonic,minor}=keyCtx(); const out=[], seen=new Set();
+  DIAT[minor?'min':'maj'].forEach(([d,suf])=>{ const n=absName((tonic+d)%12,suf,null); if(!seen.has(n)){ seen.add(n); out.push(n); } });
+  parsed.chords.forEach(c=>{ const n=chordName(c); if(!seen.has(n)){ seen.add(n); out.push(n); } });
+  return out;
+}
+function placePop(el){
+  const P=$('cpop'); P.hidden=false; const r=el.getBoundingClientRect(), pw=P.offsetWidth, ph=P.offsetHeight;
+  let left=r.left+scrollX; left=Math.max(scrollX+12,Math.min(left,scrollX+innerWidth-pw-12));
+  let top=r.bottom+scrollY+8; if(r.bottom+ph+16>innerHeight&&r.top-ph-8>0) top=r.top+scrollY-ph-8;
+  P.style.left=left+'px'; P.style.top=top+'px';
+}
+function closePop(){ $('cpop').hidden=true; pop=null; document.querySelectorAll('#chart .w.pick').forEach(e=>e.classList.remove('pick')); }
+function fillChips(){ $('cpopc').innerHTML=keyChips().map(n=>'<button class="chip" type="button" data-n="'+esc(n)+'">'+esc(n)+'</button>').join(''); $('cpops').hidden=!$('cpopc').innerHTML; }
+function openAddPop(w){
+  closePop(); stop();
+  const li=+w.dataset.l, col=+w.dataset.c; w.classList.add('pick');
+  pop={mode:'add',li,col,word:w.textContent};
+  $('cpopt').textContent='Agregar acorde sobre «'+w.textContent+'»';
+  $('cpopok').textContent='Agregar'; $('cpopi').value=''; $('cpopact').innerHTML=''; fillChips();
+  placePop(w); setTimeout(()=>{ try{ $('cpopi').focus({preventScroll:true}); }catch(e){} },30);
+}
+function openChordPop(b,i){
+  closePop();
+  pop={mode:'edit',i};
+  $('cpopt').textContent='Acorde '+chordName(parsed.chords[i]);
+  $('cpopok').textContent='Cambiar'; $('cpopi').value=''; $('cpopi').placeholder='Cambiar por… (C, Am, G7)'; fillChips();
+  $('cpopact').innerHTML='<button class="btn" type="button" data-act="hear">▶ Oír</button><button class="btn" type="button" data-act="como">Cómo se toca</button><button class="btn del" type="button" data-act="del">Eliminar</button>';
+  placePop(b);
+}
+function addChordAt(li,col,raw){
+  const lines=srcLines(); const prev=li>0?parsed.meta[li-1]:null;
+  let target, insertNew=false;
+  if(prev&&prev.isChordLine){ target=li-1; } else { target=li; insertNew=true; }
+  const before=parsed.chords.length?chordRefs.filter(r=>r.li<target||(r.li===target&&chordColAt(r)<col)).length:0;
+  if(insertNew){ lines.splice(li,0,' '.repeat(col)+raw); }
+  else {
+    const line=lines[target].padEnd(col+raw.length+1,' ');
+    if(line.slice(Math.max(0,col-1),col+raw.length+1).trim()){ toast('Ya hay un acorde muy cerca. Tócalo para cambiarlo, o arrástralo.'); return false; }
+    lines[target]=(line.slice(0,col)+raw+line.slice(col+raw.length)).replace(/\s+$/,'');
+  }
+  commitLines(lines,'Acorde agregado. Si te equivocaste, toca Deshacer.'); shiftRhythm('add',before);
+  return true;
+}
+function chordColAt(r){ const x=parsed.meta[r.li].toks[r.ti]; let off=x.a.pre.length; for(let p=0;p<r.pi;p++) off+=x.a.parts[p].length+1; return x.i+off; }
+function replaceChord(i,raw){
+  const r=chordRefs[i]; const lines=srcLines(); const x=parsed.meta[r.li].toks[r.ti], a=x.a;
+  const parts=a.parts.slice(); parts[r.pi]=raw; const tok=a.pre+parts.join('-')+a.post;
+  const line=lines[r.li]; let rest=line.slice(x.i+x.t.length); const extra=tok.length-x.t.length;
+  if(extra>0&&rest.slice(0,extra+1).trim()==='') rest=rest.slice(extra);
+  else if(extra<0) rest=' '.repeat(-extra)+rest;
+  lines[r.li]=(line.slice(0,x.i)+tok+rest).replace(/\s+$/,'');
+  commitLines(lines,'Acorde cambiado. Si te equivocaste, toca Deshacer.');
+}
+function applyPop(text){
+  if(!pop) return;
+  const raw=typedToSource(text);
+  if(!raw){ toast('No reconozco "'+text+'". Prueba así: G, Am, D7, G/B, Do#m.'); return; }
+  const p=pop; closePop();
+  if(p.mode==='add') addChordAt(p.li,p.col,raw);
+  else { replaceChord(p.i,raw); }
+  const n=parseChord(raw); if(n){ ac(); prevVoice=null; playChord({...n,root:n.root,bass:n.bass},ctx.currentTime+0.03,1.6,'block',4,false); }
+}
+$('cpopf').addEventListener('submit',e=>{ e.preventDefault(); applyPop($('cpopi').value); });
+$('cpopc').addEventListener('click',e=>{ const c=e.target.closest('[data-n]'); if(c) applyPop(c.dataset.n); });
+$('cpopact').addEventListener('click',e=>{
+  const a=e.target.closest('[data-act]'); if(!a||!pop) return; const i=pop.i;
+  if(a.dataset.act==='hear'){ ac(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.02,2.2,'block',4); return; }
+  if(a.dataset.act==='como'){ const c=parsed.chords[i]; closePop(); showTab('como'); setDict((c.root+state.shift+120)%12,c.suf,c.bass==null?null:(c.bass+state.shift+120)%12); return; }
+  if(a.dataset.act==='del'){ closePop(); deleteChord(i); }
+});
+$('cpopx').onclick=closePop;
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&pop) closePop(); });
+document.addEventListener('pointerdown',e=>{ if(pop&&!e.target.closest('#cpop')&&!e.target.closest('#chart .w')&&!e.target.closest('#chart .ch')) closePop(); });
 /* ---------- pestañas ---------- */
 const TABS=['cancion','duracion','tono','como'];
 function tabFromHash(){ const h=location.hash.slice(1); return h==='acordes'?'duracion':(TABS.includes(h)?h:'cancion'); }
 function showTab(t){
   if(t==='acordes') t='duracion';
+  if(typeof closePop==='function') closePop();
   if(!TABS.includes(t)) t='cancion';
   TABS.forEach(k=>{ $('tab-'+k).hidden=(k!==t); $('tb-'+k).setAttribute('aria-selected',k===t); });
   try{ if(t!=='cancion') history.replaceState(null,'','#'+t); else history.replaceState(null,'',location.pathname+location.search); }catch(e){}
