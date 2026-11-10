@@ -154,6 +154,9 @@ header.top p{margin:2px 0 0; color:var(--muted)}
 .prog .pn{font-weight:600; min-width:9em}
 .prog .seq{font:600 .9rem var(--f-mono); color:var(--chord); overflow-wrap:anywhere; min-width:0; flex:1 1 200px}
 .prog .seq span.on{background:var(--felt); color:var(--on-ink); border-radius:3px}
+.prog .seq span[data-r]{cursor:pointer; padding:2px 3px; border-radius:3px; display:inline-block}
+.prog .seq span[data-r]:hover{background:var(--felt-soft)}
+.progctl{display:flex; flex-direction:column; gap:10px; padding:10px; border:1px solid var(--line); border-radius:10px}
 .chips{display:flex; flex-wrap:wrap; gap:6px}
 .chip{border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:999px; padding:5px 11px; font:600 .85rem var(--f-mono); cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
@@ -625,6 +628,13 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
   </section>
   <section class="block card">
     <div class="label">Progresiones para probar</div>
+    <div class="sub">Toca ▶ para oír la progresión completa, o toca cada acorde para oírlo solo (otra vez para detenerlo).</div>
+    <div class="progctl">
+      <div class="metro"></div>
+      <div class="row"><span class="sub">Tiempos por acorde</span><div class="seg" id="pbeats" role="group" aria-label="Tiempos por acorde"><button type="button" data-pb="1" aria-pressed="false">1</button><button type="button" data-pb="2" aria-pressed="true">2</button><button type="button" data-pb="4" aria-pressed="false">4</button></div>
+      <label class="sub"><input type="checkbox" id="pclick"> Con el clic del metrónomo</label></div>
+      <div class="sub">La velocidad de ▶ es la del metrónomo de arriba (escribe el número exacto o usa − y +).</div>
+    </div>
     <div id="progs"></div>
   </section>
   <section class="block card" id="modecard">
@@ -1963,7 +1973,7 @@ function renderTono(){
   $('diat7').innerHTML=SEV[K].map(([d,s,rn])=>ccHTML((tonic+d)%12,s,null,rn,'')).join('');
   $('sugg').innerHTML=SUGG[K].map(([title,list])=>'<div class="sgrp"><h4>'+esc(title)+'</h4><div class="cgrid wide">'+list.map(([d,s,bd,rn,when])=>ccHTML((tonic+d)%12,s,bd==null?null:(tonic+bd)%12,rn,when)).join('')+'</div></div>').join('');
   setTimeout(()=>{ const on=document.querySelector('#diat .cc.on,#diat7 .cc.on,#sugg .cc.on'); const f=on||$('diat').querySelector('.cc'); if(f) showCC(f); },0);
-  $('progs').innerHTML=PROGS[K].map(([name,seq],pi)=>'<div class="prog"><button class="btn pplay" data-p="'+pi+'" aria-label="Escuchar '+esc(name)+'">▶</button><span class="pn">'+esc(name)+'</span><span class="seq">'+seq.map(([d,s,bd],k)=>'<span data-k="'+k+'">'+esc(absName((tonic+d)%12,s,bd==null?null:(tonic+bd)%12))+'</span>').join(' · ')+'</span></div>').join('');
+  $('progs').innerHTML=PROGS[K].map(([name,seq],pi)=>'<div class="prog"><button class="btn pplay" data-p="'+pi+'" aria-label="Escuchar '+esc(name)+'">▶</button><span class="pn">'+esc(name)+'</span><span class="seq">'+seq.map(([d,s,bd],k)=>'<span data-k="'+k+'" data-r="'+((tonic+d)%12)+'" data-s="'+esc(s)+'" data-b="'+(bd==null?'':(tonic+bd)%12)+'" role="button" tabindex="0">'+esc(absName((tonic+d)%12,s,bd==null?null:(tonic+bd)%12))+'</span>').join(' · ')+'</span></div>').join('');
 }
 function showAbsIn(n,r,s,b){
   const v=absVoicing(r,intervalsOf(s).iv,b,0);
@@ -1980,20 +1990,31 @@ function showCC(btn){
 }
 $('tab-tono').addEventListener('click',e=>{
   const c=e.target.closest('.cc'); if(c){ playAbs(showCC(c)); return; }
+  const sp=e.target.closest('.prog .seq span[data-r]');
+  if(sp){ if(playing) stop(); const r=+sp.dataset.r, s=sp.dataset.s, b=sp.dataset.b===''?null:+sp.dataset.b, n=sp.closest('#modecard')?'5':'3';
+    document.querySelectorAll('.prog .seq span.on').forEach(x=>x.classList.remove('on')); sp.classList.add('on'); playAbs(showAbsIn(n,r,s,b)); return; }
   const pb=e.target.closest('.pplay'); if(!pb) return;
-  const was=pb.classList.contains('on'); stop(); if(was) return;
   const {tonic,minor}=keyCtx(); const seq=PROGS[minor?'min':'maj'][+pb.dataset.p][1];
+  playProg(pb,seq.map(([d,s,bd])=>[(tonic+d)%12,s,bd==null?null:(tonic+bd)%12]),'3');
+});
+let progBeats=store.get('atril.pbeats',2);
+function syncPB(){ document.querySelectorAll('#pbeats [data-pb]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.pb===progBeats)); }
+syncPB();
+$('pbeats').addEventListener('click',e=>{ const b=e.target.closest('[data-pb]'); if(!b) return; progBeats=+b.dataset.pb; store.set('atril.pbeats',progBeats); syncPB(); });
+/* reproduce una progresión al tempo del metrónomo, con clic opcional */
+function playProg(pb,chords,n){
+  const was=pb.classList.contains('on'); stop(); if(was) return;
   ac(); playing=true; prevVoice=null; pb.classList.add('on'); pb.textContent='■';
-  const beatS=60/+$('bpm').value, dur=4*beatS; let t=ctx.currentTime+0.1;
+  const beatS=60/metro.bpm, per=progBeats, dur=per*beatS, withClick=$('pclick').checked; let t=ctx.currentTime+0.12;
   const spans=pb.parentNode.querySelectorAll('.seq span');
-  seq.forEach(([d,s,bd],k)=>{
-    const r=(tonic+d)%12, b=bd==null?null:(tonic+bd)%12;
-    playChord(relChord(r,s,b),t,dur,$('style').value,4,false);
-    later(()=>{ spans.forEach(x=>x.classList.remove('on')); spans[k].classList.add('on'); showAbsIn('3',r,s,b); },(t-ctx.currentTime)*1000);
+  chords.forEach(([r,s,b],k)=>{
+    playChord(relChord(r,s,b),t,dur,per>=4?$('style').value:'block',per,false);
+    if(withClick) for(let q=0;q<per;q++) click(t+q*beatS,q===0&&k%Math.max(1,Math.round(4/per))===0);
+    later(()=>{ spans.forEach(x=>x.classList.remove('on')); if(spans[k]) spans[k].classList.add('on'); showAbsIn(n,r,s,b); },(t-ctx.currentTime)*1000);
     t+=dur;
   });
   later(stop,(t-ctx.currentTime)*1000+200);
-});
+}
 
 /* ---------- Cómo se toca ---------- */
 const DTYPES=[['','Mayor'],['m','menor'],['7','7'],['maj7','maj7'],['m7','m7'],['sus4','sus4'],['sus2','sus2'],['dim','dim'],['aug','aum'],['6','6'],['add9','add9'],['9','9'],['m7b5','m7b5'],['dim7','dim7']];
@@ -2514,7 +2535,7 @@ function renderModes(){
     h+='<div class="label" style="margin-top:6px">Acordes del modo</div><div class="cgrid">'+mc.tri.map(([r,s,rn])=>ccHTML((R+r)%12,s,null,rn,'')).join('')+'</div>';
     h+='<div class="label" style="margin-top:6px">Con séptima</div><div class="cgrid">'+mc.sev.map(([r,s,rn])=>ccHTML((R+r)%12,s,null,rn,'')).join('')+'</div>';
   } else h+='<div class="sub">Las escalas de 5 o 6 notas se usan sobre todo para melodías y solos; los acordes de abajo son los que más las acompañan.</div>';
-  if(prog) h+='<div class="label" style="margin-top:6px">Progresión típica</div><div class="prog"><button class="btn mprog" aria-label="Escuchar la progresión">▶</button><span class="seq">'+prog.map(([d,s],k)=>'<span data-k="'+k+'">'+esc(absName((R+d)%12,s,null))+'</span>').join(' · ')+'</span></div>';
+  if(prog) h+='<div class="label" style="margin-top:6px">Progresión típica</div><div class="prog"><button class="btn mprog" aria-label="Escuchar la progresión">▶</button><span class="seq">'+prog.map(([d,s],k)=>'<span data-k="'+k+'" data-r="'+((R+d)%12)+'" data-s="'+esc(s)+'" data-b="" role="button" tabindex="0">'+esc(absName((R+d)%12,s,null))+'</span>').join(' · ')+'</span></div>';
   $('modeinfo').innerHTML=h;
   showScale();
 }
@@ -2537,14 +2558,7 @@ $('modecard').addEventListener('click',e=>{
     let t=ctx.currentTime+0.05; all.forEach((n,k)=>{ note(n,t,0.5,0.24); t+=0.3; }); return;
   }
   const pb=e.target.closest('.mprog');
-  if(pb){
-    const was=pb.classList.contains('on'); stop(); if(was) return;
-    const prog=MODES[modeSel.m][4], R=modeSel.root; ac(); playing=true; prevVoice=null; pb.classList.add('on'); pb.textContent='■';
-    const beatS=60/+$('bpm').value, dur=4*beatS; let t=ctx.currentTime+0.1; const spans=pb.parentNode.querySelectorAll('.seq span');
-    prog.forEach(([d,s],k)=>{ const r=(R+d)%12; playChord(relChord(r,s,null),t,dur,$('style').value,4,false);
-      later(()=>{ spans.forEach(x=>x.classList.remove('on')); spans[k].classList.add('on'); showAbsIn('5',r,s,null); },(t-ctx.currentTime)*1000); t+=dur; });
-    later(stop,(t-ctx.currentTime)*1000+200);
-  }
+  if(pb){ const prog=MODES[modeSel.m][4], R=modeSel.root; playProg(pb,prog.map(([d,s])=>[(R+d)%12,s,null]),'5'); }
 });
 
 /* ---------- metrónomo ---------- */
