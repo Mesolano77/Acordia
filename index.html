@@ -104,15 +104,26 @@ header.top p{margin:2px 0 0; color:var(--muted)}
 .m-dots{display:inline-flex; gap:6px; margin-left:4px}
 .m-dots i{width:14px; height:14px; border-radius:50%; border:2px solid var(--line); display:inline-block}
 .m-dots i.on{background:var(--ink); border-color:var(--ink)} .m-dots i.on.first{background:var(--felt); border-color:var(--felt)}
-.tunread{display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px; border:1px solid var(--line); border-radius:12px}
-.tnote{font:700 3rem var(--f-display); line-height:1}
-.tunread.ok .tnote,.tunread.ok .tmsg{color:#2E9B4F}
-.tmeter{position:relative; width:100%; height:16px; border-radius:8px; background:var(--line)}
-.tmeter .tz{position:absolute; left:45%; width:10%; top:0; bottom:0; background:rgba(46,155,79,.4); border-radius:4px}
-.tneedle{position:absolute; top:-5px; bottom:-5px; width:4px; margin-left:-2px; background:var(--felt); border-radius:2px; left:50%; transition:left .12s}
-.tunread.ok .tneedle{background:#2E9B4F}
-.tscale{display:flex; justify-content:space-between; width:100%; font-size:.75rem; color:var(--muted)}
-.tmsg{font-weight:600; text-align:center}
+.tpanel{--tc:#5B6475; display:flex; flex-direction:column; align-items:center; gap:2px; padding:12px 14px 14px; border-radius:20px; color:#E8ECF3;
+  background:radial-gradient(130% 100% at 50% 0%,#1C2534 0%,#0C1018 72%); border:1px solid #273043; box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 28px rgba(5,10,20,.28); max-width:520px; width:100%; align-self:center}
+.ttop{display:flex; justify-content:space-between; align-items:center; width:100%; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:#8D97AA}
+.ttop select{background:#141B27; color:#E8ECF3; border:1px solid #2C3648; border-radius:6px; font-size:.8rem; padding:2px 4px}
+.tbig{display:flex; align-items:flex-start; justify-content:center; gap:2px; margin-top:2px}
+.tnote{font:700 4.2rem/1 var(--f-display); color:#F3F6FB; transition:color .2s, text-shadow .2s}
+.toct{font:600 1.2rem/1 var(--f-display); color:#8D97AA; margin-top:.5rem}
+.tcents{font:600 1.05rem var(--f-mono); color:var(--tc); min-height:1.4em; transition:color .2s}
+.tgauge{width:100%}
+.tgauge svg{display:block; width:100%; height:auto}
+.tgauge .led{fill:#283143; transition:fill .12s, opacity .12s}
+.tgauge .lbl{fill:#7F899C; font:600 9.5px var(--f-mono); letter-spacing:-.04em}
+.tgauge .lbl.z{fill:#3DDC84; font-size:12px}
+.tgauge .acc{fill:#7F899C; font:700 15px var(--f-display)}
+.tgauge .needle{transform-box:view-box; transform-origin:180px 180px; transition:transform .15s ease-out}
+.tgauge .arrow{fill:#2A3244; transition:fill .15s}
+.tfreq{font:500 .78rem var(--f-mono); color:#8D97AA}
+.tmsg{font-weight:700; text-align:center; color:var(--tc); min-height:1.3em}
+.tpanel.ok .tnote{color:#3DDC84; text-shadow:0 0 18px rgba(61,220,132,.55)}
+.tpanel.idle .tnote{color:#5B6475}
 .tstrs{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px}
 .tstr{display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 2px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); cursor:pointer; min-width:0}
 .tstr b{font-size:1.05rem} .tstr span{font-size:.66rem; color:var(--muted); text-align:center}
@@ -666,13 +677,14 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
     <div class="sub">Toca una cuerda al aire cerca del micrófono (del teléfono o de la computadora) y gira la clavija hasta que la raya quede en el centro y diga <b>¡Afinada!</b></div>
     <div class="sub"><b>Sobre el micrófono:</b> la primera vez el teléfono o el navegador te preguntará si Acordia puede usarlo. Solo escucha mientras el afinador está encendido; el sonido se analiza en el mismo aparato, no se graba ni se envía a ningún lado, y se apaga al salir de esta pestaña.</div>
     <div class="row"><button class="btn primary" id="tunbtn" type="button">🎤 Encender afinador</button><div class="seg" id="tunmode" role="group" aria-label="Qué afinar"><button data-tmode="guitarra" aria-pressed="true" type="button">Guitarra</button><button data-tmode="libre" aria-pressed="false" type="button">Cualquier nota</button></div></div>
-    <div class="sub" id="tunclaude" hidden><span id="tunclaudet">Si abriste Acordia dentro de Claude y el afinador no escucha, ábrelo en la app pública (en este mismo dispositivo):</span> <a class="btn primary" id="tunopen" href="https://mesolano77.github.io/acordia/#afinador" target="_blank" rel="noopener">Abrir el afinador con micrófono ↗</a></div>
+    <div class="sub" id="tunclaude" hidden><span id="tunclaudet">Si abriste Acordia dentro de Claude y el afinador no escucha, ábrelo en la app pública (en este mismo dispositivo):</span> <a class="btn primary" id="tunopen" href="https://mesolano77.github.io/Acordia/#afinador" target="_blank" rel="noopener">Abrir el afinador con micrófono ↗</a></div>
     <div class="sub" id="tunerr" hidden></div>
-    <div class="tunread" id="tunread" hidden>
-      <div class="tnote" id="tnote">—</div>
-      <div class="tmeter"><span class="tz"></span><span class="tneedle" id="tneedle"></span></div>
-      <div class="tscale"><span>Baja</span><span>●</span><span>Alta</span></div>
-      <div class="sub" id="tfreq"></div>
+    <div class="tpanel idle" id="tunread" hidden>
+      <div class="ttop"><span id="tstrl">Afinador</span><label>La = <select id="ta4" aria-label="Afinación de referencia"></select> Hz</label></div>
+      <div class="tbig"><span class="tnote" id="tnote">—</span><span class="toct" id="toct"></span></div>
+      <div class="tcents" id="tcents">Toca una cuerda</div>
+      <div class="tgauge" id="tgauge" aria-hidden="true"></div>
+      <div class="tfreq" id="tfreq"></div>
       <div class="tmsg" id="tmsg"></div>
     </div>
     <div class="label" style="margin-top:6px">Notas de referencia (afinación normal)</div>
@@ -2627,19 +2639,56 @@ function yin(x,sr){
   let t=best; if(best>1&&best<maxL){ const a=c[best-1],b=c[best],g=c[best+1],den=a+g-2*b; if(den) t=best+0.5*(a-g)/den; }
   return {f:sr/t,rms};
 }
+/* esfera del afinador: cents → ángulo (±10 cents ocupan ±50°, de 10 a 50 llegan a ±78°) */
+const TLEDS=[-50,-40,-30,-25,-20,-15,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,15,20,25,30,40,50];
+let tA4=store.get('atril.a4',440), tDisp=null, tTarget=null;
+function tAng(c){ const a=Math.min(50,Math.abs(c)); return Math.sign(c)*(a<=10?a*5:50+(a-10)*0.7); }
+function tPt(ang,r){ const t=(ang-90)*Math.PI/180; return [180+r*Math.cos(t),180+r*Math.sin(t)]; }
+function tunGauge(){
+  let s='<svg viewBox="0 0 360 192"><defs><filter id="tglow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  const [ga,gb]=[tPt(tAng(-2),112),tPt(tAng(2),112)];
+  s+='<path d="M'+ga[0].toFixed(1)+' '+ga[1].toFixed(1)+' A112 112 0 0 1 '+gb[0].toFixed(1)+' '+gb[1].toFixed(1)+'" stroke="#3DDC84" stroke-width="4" fill="none" stroke-linecap="round" opacity=".85"/>';
+  TLEDS.forEach((c,k)=>{
+    const big=c===0||Math.abs(c)===5||Math.abs(c)===10||Math.abs(c)===50, r1=big?118:121, r2=big?146:142, w=c===0?6:big?4:3;
+    const [x1,y1]=tPt(tAng(c),r1),[x2,y2]=tPt(tAng(c),r2);
+    s+='<line class="led" data-k="'+k+'" x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke-width="'+w+'" stroke-linecap="round" style="stroke:#283143"/>';
+  });
+  [-50,-20,-10,-5,-3,-2,-1,0,1,2,3,5,10,20,50].forEach(c=>{ const [x,y]=tPt(tAng(c),Math.abs(c)<=3&&c!==0?162:159); s+='<text class="lbl'+(c===0?' z':'')+'" x="'+x.toFixed(1)+'" y="'+(y+4).toFixed(1)+'" text-anchor="middle">'+(c===0?'0':(c>0?'+':'−')+Math.abs(c))+'</text>'; });
+  s+='<text class="acc" x="22" y="176" text-anchor="middle">♭</text><text class="acc" x="338" y="176" text-anchor="middle">♯</text>';
+  s+='<path class="arrow" id="tarrL" d="M44 168 L64 158 L64 178 Z"/><path class="arrow" id="tarrR" d="M316 168 L296 158 L296 178 Z"/>';
+  s+='<g class="needle" id="tneedle"><line x1="180" y1="180" x2="180" y2="40" stroke="#E8ECF3" stroke-width="2" stroke-linecap="round" opacity=".9"/><circle id="tlight" cx="180" cy="48" r="6.5" fill="#5B6475" filter="url(#tglow)"/></g>';
+  s+='<circle cx="180" cy="180" r="11" fill="#1A2130" stroke="#2C3648" stroke-width="2"/><circle id="thub" cx="180" cy="180" r="7" fill="#2A3244" filter="url(#tglow)"/>';
+  $('tgauge').innerHTML=s+'</svg>';
+  $('ta4').innerHTML=[430,432,435,438,439,440,441,442,443,444,445,446].map(v=>'<option'+(v===tA4?' selected':'')+'>'+v+'</option>').join('');
+}
+tunGauge();
+$('ta4').onchange=()=>{ tA4=+$('ta4').value; store.set('atril.a4',tA4); tDisp=null; };
 function tunShow(f){
-  const box=$('tunread');
-  if(f<=0){ box.classList.remove('ok'); $('tnote').textContent='—'; $('tfreq').textContent='Toca una cuerda…'; $('tmsg').textContent=''; $('tneedle').style.left='50%'; return; }
-  const midi=69+12*Math.log2(f/440);
+  const box=$('tunread'), leds=$('tgauge').querySelectorAll('.led');
+  const paint=(col,k)=>{ leds.forEach((l,i)=>{ const d=k==null?99:Math.abs(i-k); l.style.stroke=d===0?col:d===1?col:'#283143'; l.style.opacity=d===0?1:d===1?.35:1; if(d===0) l.setAttribute('filter','url(#tglow)'); else l.removeAttribute('filter'); }); };
+  if(f<=0){
+    box.classList.add('idle'); box.classList.remove('ok'); box.style.setProperty('--tc','#5B6475');
+    $('tnote').textContent='—'; $('toct').textContent=''; $('tcents').textContent='Toca una cuerda'; $('tfreq').textContent=''; $('tmsg').textContent=''; $('tstrl').textContent=tun.mode==='guitarra'?'Guitarra':'Cromático';
+    $('tneedle').style.transform='rotate(0deg)'; $('tneedle').style.opacity=.35; $('tlight').setAttribute('fill','#5B6475'); $('thub').setAttribute('fill','#2A3244');
+    $('tarrL').style.fill=$('tarrR').style.fill=''; paint('',null); tDisp=null; return;
+  }
+  const midi=69+12*Math.log2(f/tA4);
   let target=Math.round(midi), label='';
-  if(tun.mode==='guitarra'){ let bk=0; GSTR.forEach((s,k)=>{ if(Math.abs(midi-s[0])<Math.abs(midi-GSTR[bk][0])) bk=k; }); if(Math.abs(midi-GSTR[bk][0])<4){ target=GSTR[bk][0]; label='Cuerda '+GSTR[bk][1]+' ('+GSTR[bk][2]+')'; }
+  if(tun.mode==='guitarra'){ let bk=0; GSTR.forEach((s,k)=>{ if(Math.abs(midi-s[0])<Math.abs(midi-GSTR[bk][0])) bk=k; }); if(Math.abs(midi-GSTR[bk][0])<4){ target=GSTR[bk][0]; label='Cuerda '+GSTR[bk][1]+' · '+GSTR[bk][2]; }
     document.querySelectorAll('.tstr').forEach(b=>b.classList.toggle('on',+b.dataset.ref===target)); }
-  const cents=Math.round(100*(midi-target)), cl=Math.max(-50,Math.min(50,cents));
-  $('tnote').textContent=nm(((target%12)+12)%12)+(Math.floor(target/12)-1);
-  $('tfreq').textContent=(label?label+' · ':'')+f.toFixed(1)+' Hz · '+(cents>0?'+':'')+cents+' cents';
-  $('tneedle').style.left=(50+cl)+'%';
-  const ok=Math.abs(cents)<=5; box.classList.toggle('ok',ok);
-  $('tmsg').textContent=ok?'¡Afinada!':Math.abs(cents)>40&&tun.mode!=='guitarra'?'':cents<0?'Está baja: aprieta la clavija para subirla.':'Está alta: afloja la clavija para bajarla.';
+  const raw=100*(midi-target);
+  tDisp=(tDisp==null||tTarget!==target)?raw:tDisp*0.55+raw*0.45; tTarget=target;
+  const c=tDisp, ac=Math.abs(c), ok=ac<=2, col=ok?'#3DDC84':ac<=10?'#F5B83D':'#FF5A5F';
+  box.classList.remove('idle'); box.classList.toggle('ok',ok); box.style.setProperty('--tc',col);
+  $('tnote').textContent=nm(((target%12)+12)%12); $('toct').textContent=String(Math.floor(target/12)-1);
+  $('tstrl').textContent=label||'Cromático';
+  $('tcents').textContent=(c>0.05?'+':c<-0.05?'−':'')+Math.abs(c).toFixed(1)+' cents';
+  $('tfreq').textContent=f.toFixed(1)+' Hz';
+  $('tneedle').style.opacity=1; $('tneedle').style.transform='rotate('+tAng(Math.max(-50,Math.min(50,c))).toFixed(2)+'deg)';
+  $('tlight').setAttribute('fill',col); $('thub').setAttribute('fill',ok?'#3DDC84':'#2A3244');
+  let k=0; TLEDS.forEach((v,i)=>{ if(Math.abs(v-c)<Math.abs(TLEDS[k]-c)) k=i; }); paint(col,k);
+  $('tarrL').style.fill=c<-2?'#FF5A5F':''; $('tarrR').style.fill=c>2?'#FF5A5F':'';
+  $('tmsg').textContent=ok?'¡Afinada!':ac>40&&tun.mode!=='guitarra'?'':c<0?'Está baja: aprieta la clavija para subirla':'Está alta: afloja la clavija para bajarla';
 }
 function tunLoop(){
   if(!tun.on) return;
@@ -2690,7 +2739,7 @@ $('tunmode').addEventListener('click',e=>{ const b=e.target.closest('[data-tmode
 $('tstrings').addEventListener('click',e=>{ const b=e.target.closest('[data-ref]'); if(!b) return; if(toggleOff('r'+b.dataset.ref)) return; ac(); silence(0.06); const t=ctx.currentTime+0.03; gnote(+b.dataset.ref,t,4,0.32); markSound('r'+b.dataset.ref,4.5); });
 
 /* ---------- enviar por enlace, copia de Mis canciones ---------- */
-const PUBLIC_URL='https://mesolano77.github.io/acordia/';
+const PUBLIC_URL='https://mesolano77.github.io/Acordia/';
 const incomingHash=location.hash;
 const b64u={
   enc(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000)); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); },
