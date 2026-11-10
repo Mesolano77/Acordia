@@ -98,8 +98,9 @@ header.top p{margin:2px 0 0; color:var(--muted)}
 .mn.root{border-color:var(--bass)} .mn.root b{color:var(--bass)}
 .mn.char{border-color:var(--felt); background:var(--felt-soft)}
 .metro{display:flex; flex-direction:column; gap:10px}
-.mbpm{display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:8px; align-items:center}
-.m-val{font-variant-numeric:tabular-nums; white-space:nowrap}
+.mbpm{display:flex; gap:10px; align-items:center}
+.m-val{font-variant-numeric:tabular-nums; white-space:nowrap; display:inline-flex; align-items:center; gap:6px}
+.m-num{width:4.4em; font-size:16px; font-weight:700; text-align:center; padding:6px 4px}
 .m-dots{display:inline-flex; gap:6px; margin-left:4px}
 .m-dots i{width:14px; height:14px; border-radius:50%; border:2px solid var(--line); display:inline-block}
 .m-dots i.on{background:var(--ink); border-color:var(--ink)} .m-dots i.on.first{background:var(--felt); border-color:var(--felt)}
@@ -2536,7 +2537,8 @@ $('modecard').addEventListener('click',e=>{
 /* ---------- metrónomo ---------- */
 const metro=Object.assign({bpm:80,beats:4,vol:70},store.get('atril.metro',{}),{on:false,beat:0,next:0,timer:null,out:null,taps:[],wake:null});
 const METRO_HTML='<div class="row"><button class="btn primary m-go" type="button">▶ Encender</button><span class="m-dots" aria-hidden="true"></span></div>'+
-  '<div class="mbpm"><button class="btn m-dn" type="button" aria-label="Más lento">−</button><input type="range" class="m-bpm" min="30" max="220" aria-label="Pulsos por minuto"><button class="btn m-upb" type="button" aria-label="Más rápido">+</button><span class="m-val"></span></div>'+
+  '<div class="mbpm"><button class="btn m-dn" type="button" aria-label="Más lento">−</button><span class="m-val"><input type="number" class="m-num" min="30" max="220" step="1" inputmode="numeric" enterkeyhint="done" aria-label="Pulsos por minuto exactos"> por minuto</span><button class="btn m-upb" type="button" aria-label="Más rápido">+</button></div>'+
+  '<input type="range" class="m-bpm" min="30" max="220" aria-label="Pulsos por minuto" style="width:100%">'+
   '<div class="sub m-name"></div>'+
   '<div class="row"><label class="sub">Compás <select class="m-beats" style="flex:0 1 auto"><option value="2">2/4</option><option value="3">3/4</option><option value="4">4/4</option><option value="6">6/8</option></select></label>'+
   '<button class="btn m-tap" type="button">Marcar con el dedo</button><button class="btn m-song" type="button">Tempo de la canción</button></div>'+
@@ -2546,7 +2548,7 @@ function metroSave(){ store.set('atril.metro',{bpm:metro.bpm,beats:metro.beats,v
 function metroSync(){
   document.querySelectorAll('.metro').forEach(m=>{
     if(!m.dataset.ready){ m.innerHTML=METRO_HTML; m.dataset.ready='1'; }
-    m.querySelector('.m-bpm').value=metro.bpm; m.querySelector('.m-val').innerHTML='<b>'+metro.bpm+'</b> por minuto';
+    m.querySelector('.m-bpm').value=metro.bpm; const nb=m.querySelector('.m-num'); if(document.activeElement!==nb) nb.value=metro.bpm;
     m.querySelector('.m-name').textContent=tempoName(metro.bpm);
     m.querySelector('.m-beats').value=String(metro.beats); m.querySelector('.m-vol').value=metro.vol;
     const go=m.querySelector('.m-go'); go.textContent=metro.on?'■ Detener':'▶ Encender'; go.classList.toggle('on',metro.on);
@@ -2597,6 +2599,9 @@ document.addEventListener('input',e=>{
   if(e.target.matches('.m-bpm')) metroSet(+e.target.value);
   if(e.target.matches('.m-vol')){ metro.vol=+e.target.value; metroSave(); metroSync(); }
 });
+function metroNum(el){ const v=parseInt(el.value,10); if(isNaN(v)){ el.value=metro.bpm; return; } if(v<30||v>220) toast('El metrónomo va de 30 a 220 por minuto.'); metroSet(v); el.value=metro.bpm; }
+document.addEventListener('change',e=>{ if(e.target.matches('.metro .m-num')) metroNum(e.target); });
+document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target.matches('.metro .m-num')){ e.preventDefault(); metroNum(e.target); e.target.blur(); } });
 document.addEventListener('change',e=>{
   if(!e.target.matches('.metro .m-beats')) return;
   metro.beats=+e.target.value; metro.beat=0; metroSave(); metroSync();
