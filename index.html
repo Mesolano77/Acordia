@@ -1604,7 +1604,7 @@ function libClick(e){
   if(as){ openSetPop(as.dataset.addset); return; }
   const list=songs();
   if(sd){ const x=list.find(y=>y.id===sd.dataset.send); if(x) sendSong(x); return; }
-  if(o){ const x=list.find(y=>y.id===o.dataset.open); if(!x) return; if(x.id===state.libId&&!isDirty()){ toast('Ya está abierta.'); return; }
+  if(o){ const x=list.find(y=>y.id===o.dataset.open); if(!x) return; if(x.id===state.libId&&!isDirty()){ if($('tab-cancion').hidden) showTab('cancion'); setTimeout(()=>{ try{ document.querySelector('.sheet').scrollIntoView({block:'start'}); }catch(err){} },50); toast('Aquí está: '+(x.title||'la canción')+'.'); return; }
     if(!confirmDiscard(o,'la canción')) return;
     stop(); Object.assign(state,{title:x.title,text:x.text,shift:x.shift||0,timing:x.timing||null,rhythm:x.rhythm||null,meter:x.meter||4,libId:x.id}); undoStack=[]; $('undo').disabled=true; load(); renderSaved(); toast('Abierta: '+x.title); if($('tab-cancion').hidden) showTab('cancion'); setTimeout(()=>{ try{ document.querySelector('.sheet').scrollIntoView({block:'start'}); }catch(err){} },50); }
   if(m){ const k=list.findIndex(y=>y.id===m.dataset.id), j=k+(+m.dataset.mv); if(k<0||j<0||j>=list.length) return; [list[k],list[j]]=[list[j],list[k]]; store.set('atril.songs',list); renderSaved(); }
@@ -2889,7 +2889,7 @@ function subFix(x,sr,f){
   }
   return best;
 }
-const APP_VER='20261110-1613';
+const APP_VER='20261110-1620';
 /* modo guitarra: qué cuerda suena, mirando la serie completa de armónicos de cada cuerda */
 const GSTR_F=[40,45,50,55,59,64].map(m=>440*Math.pow(2,(m-69)/12));
 function gtrPick(x,sr,a4){
