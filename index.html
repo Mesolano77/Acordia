@@ -152,7 +152,7 @@ body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-in
 @media (max-width:860px){
   .grid{display:flex; flex-direction:column}
   .colL,.colR{display:contents}
-  .o-tono{order:1} .o-lib{order:2} .o-add{order:3} .o-sheet{order:4} .o-ensayo{order:5} .o-teclado{order:6} .o-metro{order:7} .o-ayuda{order:8}
+  .o-tono{order:1} .o-lib{order:2} .o-add{order:3} .o-sheet{order:4} .o-ensayo{order:5} .o-teclado{order:6} .o-tuner{order:7} .o-metro{order:8} .o-ayuda{order:9}
 }
 .block{display:flex; flex-direction:column; gap:10px; min-width:0}
 .label{font-family:var(--f-display); font-size:.72rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
@@ -389,6 +389,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
       <div class="gtrbox" id="gtr" hidden></div>
       <div class="notes" id="notes">Toca un acorde para ver sus notas.</div>
     </section>
+    <div class="o-tuner" id="tunslotC" hidden></div>
     <section class="block card o-metro"><div class="label">Metrónomo</div><div class="metro"></div></section>
     <div class="o-ayuda">
     <details>
@@ -656,7 +657,8 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
 </div>
 
 <div class="wrap tab2" id="tab-afinador" role="tabpanel" aria-labelledby="tb-afinador" hidden>
-  <section class="block card">
+  <div id="tunslotA">
+  <section class="block card" id="tuncard">
     <div class="label">Afinador de guitarra</div>
     <div class="sub">Toca una cuerda al aire cerca del teléfono y gira la clavija hasta que la raya quede en el centro y diga <b>¡Afinada!</b></div>
     <div class="sub"><b>Sobre el micrófono:</b> la primera vez el teléfono te preguntará si Acordia puede usarlo. Solo escucha mientras el afinador está encendido; el sonido se analiza en el mismo teléfono, no se graba ni se envía a ningún lado, y se apaga al salir de esta pestaña.</div>
@@ -673,6 +675,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
     <div class="sub">Toca un botón para oír cómo debe sonar cada cuerda, de la más gruesa (6.ª) a la más delgada (1.ª). Con el afinador encendido, se marca la cuerda que estás tocando.</div>
     <div class="tstrs" id="tstrings"></div>
   </section>
+  </div>
   <section class="block card"><div class="label">Metrónomo</div><div class="metro"></div></section>
 </div>
 
@@ -2406,6 +2409,7 @@ function setInst(v,quiet){
   document.querySelectorAll('.leg-p').forEach(e=>e.hidden=g); document.querySelectorAll('.leg-g').forEach(e=>e.hidden=!g);
   $('dinvbtn').textContent=g?'Otras posiciones':'Otras formas (inversiones)';
   $('pianostat').textContent=g?'Sonido: guitarra acústica (se genera en el dispositivo, sin descargas).':(samples?'Sonido: piano de cola.':'Sonido: piano de cola (se carga al reproducir).');
+  if(typeof placeTuner==='function'&&typeof tun!=='undefined') placeTuner();
   if(quiet) return;
   silence();
   const c=parsed.chords[selIndex]; if(c){ if(g) showOnGuitar(c,chordShape(c)); else { prevVoice=null; showOnPiano(c,voicing(c),bassMidi(c)); } }
@@ -2631,6 +2635,15 @@ function tunFail(kind){
   $('tunerr').innerHTML=m; $('tunerr').hidden=false;
 }
 $('tunbtn').onclick=()=>{ tun.on?tunStop():tunStart(); };
+/* el afinador vive en su pestaña y, con guitarra, también debajo de la guitarra en Canción */
+function placeTuner(){
+  const card=$('tuncard'), C=$('tunslotC'), A=$('tunslotA');
+  const inC=!$('tab-cancion').hidden&&inst==='guitarra';
+  if(inC){ if(card.parentNode!==C) C.appendChild(card); C.hidden=false; }
+  else { C.hidden=true; if(card.parentNode!==A) A.appendChild(card); }
+  const visible=inC||!$('tab-afinador').hidden;
+  if(!visible&&tun.on) tunStop();
+}
 $('tunmode').addEventListener('click',e=>{ const b=e.target.closest('[data-tmode]'); if(!b) return; tun.mode=b.dataset.tmode; $('tunmode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); $('tstrings').hidden=tun.mode!=='guitarra'; tun.hist=[]; });
 $('tstrings').addEventListener('click',e=>{ const b=e.target.closest('[data-ref]'); if(!b) return; ac(); const t=ctx.currentTime+0.03; gnote(+b.dataset.ref,t,4,0.32); });
 
@@ -2777,8 +2790,8 @@ function showTab(t){
   if(typeof closePop==='function') closePop();
   if(!TABS.includes(t)) t='cancion';
   TABS.forEach(k=>{ $('tab-'+k).hidden=(k!==t); $('tb-'+k).setAttribute('aria-selected',k===t); });
+  placeTuner();
   try{ if(t!=='cancion') history.replaceState(null,'','#'+t); else history.replaceState(null,'',location.pathname+location.search); }catch(e){}
-  if(t!=='afinador'&&typeof tun!=='undefined'&&tun.on) tunStop();
   if(t==='afinador'){ tunStrings(); metroSync(); }
   if(t==='duracion'){ renderBars(); renderLines(); }
   if(t==='tono') renderTono();
