@@ -197,7 +197,7 @@ pre#chart{margin:0; font-family:var(--f-mono); font-size:var(--chart-size); line
 pre#chart .cl{color:var(--chord); font-weight:600}
 .ch{font:inherit; color:var(--chord); background:none; border:0; padding:0; margin:0; border-radius:3px; cursor:pointer}
 .ch:hover{background:var(--felt-soft)}
-pre#chart .cl .ch{touch-action:pan-y; cursor:grab; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none}
+pre#chart .cl .ch{display:inline-block; touch-action:pan-y; cursor:grab; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none}
 pre#chart{touch-action:manipulation}
 pre#chart .w{-webkit-touch-callout:none}
 pre#chart .lp{background:var(--felt-soft); border-radius:3px}
@@ -2036,22 +2036,28 @@ $('usetiming').addEventListener('change',()=>renderLines());
 /* ---------- arrastrar acordes sobre la letra ---------- */
 let drag=null, dragJust=false;
 function charW(){ const sp=document.createElement('span'); sp.textContent='MMMMMMMMMM'; sp.style.visibility='hidden'; $('chart').appendChild(sp); const w=sp.getBoundingClientRect().width/10; sp.remove(); return w||9.6; }
-$('chart').addEventListener('pointerdown',e=>{
-  const b=e.target.closest('.cl .ch'); if(!b||e.button>0) return;
-  const r=chordRefs[+b.dataset.i]; if(!r||!parsed.meta[r.li].isChordLine) return;
-  drag={b,i:+b.dataset.i,li:r.li,ti:r.ti,x0:e.clientX,y0:e.clientY,cw:charW(),moved:false,d:0,id:e.pointerId};
-});
-$('chart').addEventListener('pointermove',e=>{
-  if(!drag||e.pointerId!==drag.id) return;
-  const dx=e.clientX-drag.x0, dy=e.clientY-drag.y0;
-  if(!drag.moved){ if(Math.abs(dx)<7) { if(Math.abs(dy)>10) drag=null; return; } drag.moved=true; try{ drag.b.setPointerCapture(e.pointerId); }catch(err){} drag.b.classList.add('drag'); stop(); }
-  e.preventDefault();
+function makeDrag(b,x,y,id){
+  const r=chordRefs[+b.dataset.i]; if(!r||!parsed.meta[r.li].isChordLine) return null;
+  return {b,i:+b.dataset.i,li:r.li,ti:r.ti,x0:x,y0:y,cw:charW(),moved:false,d:0,id};
+}
+function dragMoveTo(cx,cy,pid){
+  const dx=cx-drag.x0, dy=cy-drag.y0;
+  if(!drag.moved){ if(Math.abs(dx)<7){ if(Math.abs(dy)>10&&!(tdrag&&tdrag.lock==='h')) drag=null; return false; } drag.moved=true; if(pid!=null) try{ drag.b.setPointerCapture(pid); }catch(err){} drag.b.classList.add('drag'); stop(); }
   const x=parsed.meta[drag.li].toks[drag.ti];
   drag.d=Math.max(-x.i,Math.round(dx/drag.cw));
   drag.b.style.transform='translateX('+(drag.d*drag.cw)+'px)';
+  return true;
+}
+$('chart').addEventListener('pointerdown',e=>{
+  const b=e.target.closest('.cl .ch'); if(!b||e.button>0) return;
+  drag=makeDrag(b,e.clientX,e.clientY,e.pointerId);
+});
+$('chart').addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.id) return;
+  if(dragMoveTo(e.clientX,e.clientY,e.pointerId)) e.preventDefault();
 });
 function endDrag(e,cancel){
-  if(!drag||(e&&e.pointerId!==drag.id)) return;
+  if(!drag||(e&&e.pointerId!==drag.id&&drag.id!=='t')) return;
   const d=drag; drag=null;
   if(!d.moved) return;
   dragJust=true; setTimeout(()=>{ dragJust=false; },350);
@@ -2068,7 +2074,23 @@ function endDrag(e,cancel){
   highlight(d.i,false);
 }
 $('chart').addEventListener('pointerup',e=>endDrag(e,false));
-$('chart').addEventListener('pointercancel',e=>endDrag(e,true));
+/* iPhone: si el dedo empieza a moverse de lado sobre un acorde, se frena el desplazamiento de la página para poder arrastrarlo */
+let tdrag=null;
+$('chart').addEventListener('touchstart',e=>{
+  const b=e.target.closest('.cl .ch'); const t=e.touches[0];
+  tdrag=(!b||editMode||e.touches.length>1)?null:{x:t.clientX,y:t.clientY,lock:null};
+  if(tdrag&&!drag) drag=makeDrag(b,t.clientX,t.clientY,'t');
+},{passive:true});
+$('chart').addEventListener('touchmove',e=>{
+  if(!tdrag) return; const t=e.touches[0], dx=t.clientX-tdrag.x, dy=t.clientY-tdrag.y;
+  if(tdrag.lock===null) tdrag.lock=Math.abs(dx)>=Math.abs(dy)?'h':'v';
+  if(tdrag.lock!=='h') return;
+  if(e.cancelable) e.preventDefault();
+  if(drag) dragMoveTo(t.clientX,t.clientY,null);
+},{passive:false});
+$('chart').addEventListener('touchend',()=>{ const h=tdrag&&tdrag.lock==='h'; tdrag=null; if(h&&drag) endDrag(null,false); },{passive:true});
+$('chart').addEventListener('touchcancel',()=>{ tdrag=null; if(drag) endDrag(null,true); },{passive:true});
+$('chart').addEventListener('pointercancel',e=>{ if(tdrag&&tdrag.lock==='h') return; endDrag(e,true); });
 /* ---------- agregar, cambiar y eliminar acordes tocando la letra ---------- */
 let pop=null;
 function srcName(pc){ const t=FLAT_KEYS.has(parsed.origKey)?FLAT:SHARP; return t[((pc%12)+12)%12]; }
