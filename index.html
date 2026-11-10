@@ -252,6 +252,16 @@ pre#chart .w.pick{background:var(--felt); color:var(--on-ink)}
 .qtone .btn{flex:0 0 auto; font-weight:700; padding:8px 14px}
 .qkey{flex:1 1 auto; text-align:center; font-weight:700; color:var(--chord); min-width:0}
 .qkey small{display:block; font-weight:500; color:var(--muted); font-size:.75rem}
+.libsearch{display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px}
+@media (max-width:560px){ .libsearch{grid-template-columns:1fr 1fr} .libsearch input{grid-column:1/-1} }
+.libsearch input,.libsearch select{min-width:0; font-size:16px}
+#tab-lista .lib{max-height:none}
+#tab-lista .lib li{grid-template-columns:1fr}
+#tab-lista .lib .la{justify-content:flex-end; flex-wrap:wrap}
+.lib .lt .lk{color:var(--chord); font-weight:700}
+.libsearch input{padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink)}
+.libsearch select{padding:8px 10px}
+.lib .lk{display:inline-block; font-weight:700; color:var(--chord)}
 .bignew{width:100%; font-size:1.05rem; padding:12px 16px; font-weight:700}
 .sharebox{display:flex; flex-direction:column; gap:6px; border:1px dashed var(--felt); border-radius:8px; padding:8px}
 .sharebox input{width:100%; font-size:.8rem}
@@ -334,6 +344,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
 
 <nav class="tabs" role="tablist" aria-label="Secciones"><div class="wrap tabrow">
   <button class="tab" role="tab" id="tb-cancion" data-tab="cancion" aria-selected="true">Canción</button>
+  <button class="tab" role="tab" id="tb-lista" data-tab="lista" aria-selected="false">Mis canciones</button>
   <button class="tab" role="tab" id="tb-duracion" data-tab="duracion" aria-selected="false">Duración</button>
   <button class="tab" role="tab" id="tb-tono" data-tab="tono" aria-selected="false">Tono</button>
   <button class="tab" role="tab" id="tb-como" data-tab="como" aria-selected="false">Cómo se toca</button>
@@ -366,24 +377,12 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
     <section class="block card o-lib" aria-labelledby="l-lib">
       <div class="row" style="justify-content:space-between">
         <div class="label" id="l-lib">Mis canciones</div>
-        <span class="sub" id="libcount"></span>
+        <span class="sub" id="libcount2"></span>
       </div>
       <button class="btn primary bignew" id="libnew" type="button">＋ Nueva canción</button>
-      <div class="sub">Se guardan en este dispositivo, con tus cambios (acordes, tono y duración). Toca una para abrirla.</div>
-      <input type="text" id="libq" placeholder="Buscar en mis canciones" autocomplete="off" hidden>
-      <ul class="lib" id="lib"></ul>
-      <button class="btn primary" id="libsave">Guardar la canción actual</button>
-      <div class="sharebox" id="sharebox" hidden>
-        <div class="sub" id="sharemsg"></div>
-        <input type="text" id="sharelink" readonly>
-        <div class="row"><button class="btn primary" id="sharecopy">Copiar enlace</button><button class="btn" id="shareclose">Cerrar</button></div>
-      </div>
-      <div class="row">
-        <button class="btn" id="libexport">Exportar copia</button>
-        <label class="btn filebtn" for="libimport">Importar copia</label>
-        <input type="file" id="libimport" accept=".json,application/json,text/plain" class="vh">
-      </div>
-      <div class="sub"><b>Enviar</b> manda la canción por enlace (WhatsApp, Mensajes) con tus acordes, tono y duraciones. <b>Exportar copia</b> guarda todas en un archivo para pasarlas a otro dispositivo o como respaldo.</div>
+      <div class="row"><button class="btn" id="libgo" type="button">📚 Ver todas mis canciones</button><button class="btn" id="libsave2" type="button">Guardar la canción actual</button></div>
+      <div class="sub" id="librecentl" hidden>Últimas que usaste:</div>
+      <ul class="lib" id="librecent"></ul>
     </section>
     <section class="block card o-ensayo" aria-labelledby="l-ens">
       <div class="label" id="l-ens">Ensayo</div>
@@ -555,6 +554,35 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
     <div class="chart-scroll"><pre id="chart"></pre></div>
   </main>
   </div>
+</div>
+
+<div class="wrap tab2" id="tab-lista" role="tabpanel" aria-labelledby="tb-lista" hidden>
+  <section class="block card" aria-labelledby="l-lib2">
+    <div class="row" style="justify-content:space-between">
+      <div class="label" id="l-lib2">Mis canciones</div>
+      <span class="sub" id="libcount"></span>
+    </div>
+    <button class="btn primary bignew" id="libnew2" type="button">＋ Nueva canción</button>
+    <div class="libsearch">
+      <input type="search" id="libq" placeholder="Buscar por nombre…" autocomplete="off" aria-label="Buscar por nombre">
+      <select id="libkey" aria-label="Filtrar por tono"></select>
+      <select id="libsort" aria-label="Ordenar"><option value="mine">Mi orden</option><option value="name">Nombre A–Z</option><option value="key">Por tono</option><option value="date">Recientes</option></select>
+    </div>
+    <div class="sub" id="libres"></div>
+    <ul class="lib" id="lib"></ul>
+    <button class="btn primary" id="libsave" type="button">Guardar la canción actual</button>
+    <div class="sharebox" id="sharebox" hidden>
+      <div class="sub" id="sharemsg"></div>
+      <input type="text" id="sharelink" readonly>
+      <div class="row"><button class="btn primary" id="sharecopy">Copiar enlace</button><button class="btn" id="shareclose">Cerrar</button></div>
+    </div>
+    <div class="row">
+      <button class="btn" id="libexport">Exportar copia</button>
+      <label class="btn filebtn" for="libimport">Importar copia</label>
+      <input type="file" id="libimport" accept=".json,application/json,text/plain" class="vh">
+    </div>
+    <div class="sub">Se guardan en este dispositivo, con tus cambios (acordes, tono y duración). Toca una para abrirla. <b>Enviar</b> manda la canción por enlace (WhatsApp, Mensajes) con tus acordes, tono y duraciones. <b>Exportar copia</b> guarda todas en un archivo para pasarlas a otro dispositivo o como respaldo. Las flechas ↑ ↓ ordenan tu playlist (en "Mi orden", sin filtros).</div>
+  </section>
 </div>
 
 <div class="wrap tab2" id="tab-duracion" role="tabpanel" aria-labelledby="tb-duracion" hidden>
@@ -1445,12 +1473,54 @@ function updateSaveState(){
   else { st.textContent='✓ Guardada'; st.className='savestat'; }
 }
 function fmtDate(t){ try{ return new Date(t).toLocaleDateString('es-CR',{day:'numeric',month:'short'}); }catch(e){ return ''; } }
+/* tono de cada canción guardada (para buscar y agrupar por tono) */
+function songKey(x){
+  if(x.kp==null){
+    const all=[]; x.text.replace(/\t/g,'    ').split(/\r?\n/).forEach(line=>{ if(MARK.test(line.trim())) return;
+      const toks=[...line.matchAll(/\S+/g)].map(m=>({a:analyzeToken(m[0]),lab:LABEL_RE.test(m[0])}));
+      const ch=toks.filter(t=>t.a).length, ct=toks.filter(t=>!t.lab).length, isCL=ch>0&&ch>=0.6*Math.max(ct,1);
+      toks.forEach(t=>{ if(t.a&&(isCL||t.a.count>=2)) t.a.chords.forEach(c=>{ if(c) all.push(c); }); }); });
+    if(!all.length){ x.kp=-1; x.km=false; } else { const k=detectKey(all); x.kp=((k.key+(x.shift||0))%12+12)%12; x.km=!!k.minor; }
+  }
+  return x.kp<0?null:{pc:x.kp,minor:x.km};
+}
+function tonicOf(k){ return k?(k.minor?(k.pc+9)%12:k.pc):99; }
+function keyId(k){ return k?(k.minor?'m':'M')+k.pc:''; }
+function songKeyText(k){ return k?(k.minor?nmLong(k.pc+9)+' menor':nmLong(k.pc)+' mayor'):'Sin acordes'; }
+function curKeyId(){ return parsed.chords.length?keyId({pc:(parsed.origKey+state.shift+120)%12,minor:parsed.minor}):''; }
+function libItem(x,k,n,arrows){
+  const kk=songKey(x);
+  return '<li class="'+(x.id===state.libId?'cur':'')+'"><button class="lt" data-open="'+x.id+'"><b>'+esc(x.title||'Sin título')+'</b><span><span class="lk">'+esc(songKeyText(kk))+'</span>'+(x.updated?' · '+esc(fmtDate(x.updated)):'')+(x.id===state.libId?' · abierta':'')+'</span></button>'+
+    '<span class="la">'+(arrows?'<button class="btn" data-mv="-1" data-id="'+x.id+'" aria-label="Subir"'+(k===0?' disabled':'')+'>↑</button><button class="btn" data-mv="1" data-id="'+x.id+'" aria-label="Bajar"'+(k===n-1?' disabled':'')+'>↓</button>':'')+'<button class="btn" data-send="'+x.id+'">Enviar</button><button class="btn" data-del="'+x.id+'">Borrar</button></span></li>';
+}
 function renderSaved(){
-  const list=songs(), q=($('libq').value||'').trim().toLowerCase();
-  $('libq').hidden=list.length<6; $('libcount').textContent=list.length?list.length+' guardada'+(list.length>1?'s':''):'';
-  $('lib').innerHTML=list.map((x,k)=>({x,k})).filter(({x})=>!q||(x.title||'').toLowerCase().includes(q)).map(({x,k})=>
-    '<li class="'+(x.id===state.libId?'cur':'')+'"><button class="lt" data-open="'+x.id+'"><b>'+esc(x.title||'Sin título')+'</b><span>'+esc(x.keyName||'')+(x.updated?' · '+esc(fmtDate(x.updated)):'')+(x.id===state.libId?' · abierta':'')+'</span></button>'+
-    '<span class="la"><button class="btn" data-mv="-1" data-id="'+x.id+'" aria-label="Subir"'+(k===0?' disabled':'')+'>↑</button><button class="btn" data-mv="1" data-id="'+x.id+'" aria-label="Bajar"'+(k===list.length-1?' disabled':'')+'>↓</button><button class="btn" data-send="'+x.id+'">Enviar</button><button class="btn" data-del="'+x.id+'">Borrar</button></span></li>').join('');
+  const list=songs(); let dirtyKeys=false;
+  list.forEach(x=>{ if(x.kp==null){ songKey(x); dirtyKeys=true; } });
+  if(dirtyKeys) store.set('atril.songs',list);
+  const n=list.length, cnt=n?n+' guardada'+(n>1?'s':''):'';
+  $('libcount').textContent=cnt; $('libcount2').textContent=cnt;
+  /* filtro de tonos: solo los que hay en la lista, con cuántas canciones */
+  const sel=$('libkey'), prev=sel.value, counts={};
+  list.forEach(x=>{ const id=keyId(songKey(x)); if(id) counts[id]=(counts[id]||0)+1; });
+  const ids=Object.keys(counts).sort((a,b)=>tonicOf({pc:+a.slice(1),minor:a[0]==='m'})-tonicOf({pc:+b.slice(1),minor:b[0]==='m'})||a.localeCompare(b));
+  const cur=curKeyId();
+  sel.innerHTML='<option value="">Tono: todos</option>'+(cur?'<option value="cur">Mismo tono que la abierta ('+esc(songKeyText({pc:+cur.slice(1),minor:cur[0]==='m'}))+')</option>':'')+
+    ids.map(id=>'<option value="'+id+'">'+esc(songKeyText({pc:+id.slice(1),minor:id[0]==='m'}))+' ('+counts[id]+')</option>').join('');
+  if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+  const q=($('libq').value||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''), kf=sel.value==='cur'?cur:sel.value, sort=$('libsort').value;
+  let rows=list.map((x,k)=>({x,k}));
+  if(q) rows=rows.filter(({x})=>(x.title||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').includes(q));
+  if(kf) rows=rows.filter(({x})=>keyId(songKey(x))===kf);
+  if(sort==='name') rows.sort((a,b)=>(a.x.title||'').localeCompare(b.x.title||'','es'));
+  else if(sort==='key') rows.sort((a,b)=>{ const A=songKey(a.x),B=songKey(b.x); return tonicOf(A)-tonicOf(B)||((A&&A.minor)?1:0)-((B&&B.minor)?1:0)||(a.x.title||'').localeCompare(b.x.title||'','es'); });
+  else if(sort==='date') rows.sort((a,b)=>(b.x.updated||0)-(a.x.updated||0));
+  const arrows=sort==='mine'&&!q&&!kf;
+  $('lib').innerHTML=rows.map(({x,k})=>libItem(x,k,n,arrows)).join('');
+  $('libres').textContent=(q||kf)?(rows.length?rows.length+' de '+n+' canciones':'Ninguna canción coincide.'):'';
+  /* en Canción: las 3 últimas usadas */
+  const rec=list.slice().sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,3);
+  $('librecentl').hidden=!rec.length;
+  $('librecent').innerHTML=rec.map(x=>'<li class="'+(x.id===state.libId?'cur':'')+'"><button class="lt" data-open="'+x.id+'"><b>'+esc(x.title||'Sin título')+'</b><span><span class="lk">'+esc(songKeyText(songKey(x)))+'</span>'+(x.id===state.libId?' · abierta':'')+'</span></button></li>').join('');
   updateSaveState();
 }
 function confirmDiscard(btn,label){
@@ -1458,25 +1528,27 @@ function confirmDiscard(btn,label){
   btn.dataset.ok='1'; toast('Tienes cambios sin guardar en «'+(state.title||'esta canción')+'». Toca '+label+' otra vez para descartarlos, o toca Guardar primero.');
   setTimeout(()=>{ if(btn) delete btn.dataset.ok; },4000); return false;
 }
-$('lib').addEventListener('click',e=>{
+function libClick(e){
   const o=e.target.closest('[data-open]'), m=e.target.closest('[data-mv]'), d=e.target.closest('[data-del]'), sd=e.target.closest('[data-send]');
   const list=songs();
   if(sd){ const x=list.find(y=>y.id===sd.dataset.send); if(x) sendSong(x); return; }
   if(o){ const x=list.find(y=>y.id===o.dataset.open); if(!x) return; if(x.id===state.libId&&!isDirty()){ toast('Ya está abierta.'); return; }
     if(!confirmDiscard(o,'la canción')) return;
-    stop(); Object.assign(state,{title:x.title,text:x.text,shift:x.shift||0,timing:x.timing||null,rhythm:x.rhythm||null,meter:x.meter||4,libId:x.id}); undoStack=[]; $('undo').disabled=true; load(); renderSaved(); toast('Abierta: '+x.title); try{ document.querySelector('.sheet').scrollIntoView({block:'start'}); }catch(err){} }
+    stop(); Object.assign(state,{title:x.title,text:x.text,shift:x.shift||0,timing:x.timing||null,rhythm:x.rhythm||null,meter:x.meter||4,libId:x.id}); undoStack=[]; $('undo').disabled=true; load(); renderSaved(); toast('Abierta: '+x.title); if($('tab-cancion').hidden) showTab('cancion'); setTimeout(()=>{ try{ document.querySelector('.sheet').scrollIntoView({block:'start'}); }catch(err){} },50); }
   if(m){ const k=list.findIndex(y=>y.id===m.dataset.id), j=k+(+m.dataset.mv); if(k<0||j<0||j>=list.length) return; [list[k],list[j]]=[list[j],list[k]]; store.set('atril.songs',list); renderSaved(); }
   if(d){ const k=list.findIndex(y=>y.id===d.dataset.del); if(k<0) return;
     if(d.dataset.confirm){ const gone=list.splice(k,1)[0]; store.set('atril.songs',list); if(gone.id===state.libId) state.libId=null; persist(); renderSaved(); toast('Borrada: '+(gone.title||'canción')+'.'); }
     else { d.dataset.confirm='1'; d.textContent='¿Seguro?'; setTimeout(()=>{ if(d.isConnected){ delete d.dataset.confirm; d.textContent='Borrar'; } },3000); } }
-});
-$('libq').oninput=renderSaved;
+}
+$('lib').addEventListener('click',libClick); $('librecent').addEventListener('click',libClick);
+$('libq').oninput=renderSaved; $('libkey').onchange=renderSaved; $('libsort').onchange=renderSaved;
+$('libgo').onclick=()=>showTab('lista');
 function saveSong(){
   if(!state.text.trim()){ toast('No hay nada que guardar todavía.'); return; }
   const list=songs(); const T=(parsed.origKey+state.shift+120)%12;
   const keyName=parsed.chords.length?(parsed.minor?nmLong(T+9)+' menor':nmLong(T)+' mayor'):'';
   if(!state.title.trim()){ state.title='Sin título '+(list.length+1); $('title').value=state.title; $('stitle').textContent=state.title; }
-  const entry={id:state.libId||('s'+Date.now().toString(36)),title:state.title,text:state.text,shift:state.shift,keyName,timing:state.timing||null,rhythm:state.rhythm||null,meter:state.meter||4,updated:Date.now()};
+  const entry={id:state.libId||('s'+Date.now().toString(36)),title:state.title,text:state.text,shift:state.shift,keyName,kp:parsed.chords.length?(parsed.origKey+state.shift+120)%12:-1,km:!!parsed.minor,timing:state.timing||null,rhythm:state.rhythm||null,meter:state.meter||4,updated:Date.now()};
   let k=list.findIndex(x=>x.id===entry.id);
   if(k<0&&!state.libId) k=list.findIndex(x=>(x.title||'')===entry.title);
   if(k>=0){ entry.id=list[k].id; list[k]=entry; } else list.push(entry);
@@ -1484,9 +1556,9 @@ function saveSong(){
   try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
   toast('Guardada en Mis canciones: '+entry.title+' ('+keyName+').');
 }
-$('save').onclick=saveSong; $('saveTop').onclick=saveSong; $('libsave').onclick=saveSong;
+$('save').onclick=saveSong; $('saveTop').onclick=saveSong; $('libsave').onclick=saveSong; $('libsave2').onclick=saveSong;
 function newSong(ev){ const btn=ev&&ev.currentTarget; if(btn&&!confirmDiscard(btn,'Nueva canción')) return; stop(); Object.assign(state,{title:'',text:'',shift:0,timing:null,rhythm:null,libId:null}); selBar=null; undoStack=[]; $('undo').disabled=true; load(); renderSaved(); $('ed').open=true; $('ed').scrollIntoView({block:'start'}); setTimeout(()=>{ try{$('title').focus({preventScroll:true})}catch(e){} },300); }
-$('new').onclick=newSong; $('new2').onclick=newSong; $('libnew').onclick=newSong;
+$('new').onclick=newSong; $('new2').onclick=newSong; $('libnew').onclick=newSong; $('libnew2').onclick=e=>{ showTab('cancion'); newSong(e); };
 $('photos2').onclick=()=>{ $('ed').open=true; $('photobox').scrollIntoView({block:'start'}); };
 $('next2').onclick=()=>{ $('ed').open=true; $('joinbox').scrollIntoView({block:'start'}); setTimeout(()=>{ try{$('next').focus({preventScroll:true})}catch(e){} },300); };
 const normL=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9#]/g,'');
@@ -2745,7 +2817,7 @@ function subFix(x,sr,f){
   }
   return best;
 }
-const APP_VER='20261110-1602';
+const APP_VER='20261110-1610';
 /* modo guitarra: qué cuerda suena, mirando la serie completa de armónicos de cada cuerda */
 const GSTR_F=[40,45,50,55,59,64].map(m=>440*Math.pow(2,(m-69)/12));
 function gtrPick(x,sr,a4){
@@ -2906,6 +2978,7 @@ function curEntry(){
   return {id:state.libId||'',title:state.title||'Canción',text:state.text,shift:state.shift||0,meter:state.meter||4,rhythm:state.rhythm||null,timing:state.timing||null,keyName};
 }
 function showShareBox(url,title){
+  if($('tab-lista').hidden) showTab('lista');
   $('sharebox').hidden=false; $('sharelink').value=url;
   $('sharemsg').innerHTML='Enlace de «'+esc(title)+'». Cópialo y pégalo en WhatsApp o Mensajes. Quien lo abra verá la canción con tus acordes y podrá guardarla.';
   $('sharebox').scrollIntoView({block:'nearest'});
@@ -3076,7 +3149,7 @@ document.addEventListener('pointerdown',e=>{
   k.classList.add('press'); setTimeout(()=>k.classList.remove('press'),220);
 });
 /* ---------- pestañas ---------- */
-const TABS=['cancion','duracion','tono','como','afinador'];
+const TABS=['cancion','lista','duracion','tono','como','afinador'];
 function tabFromHash(){ const h=location.hash.slice(1); return h==='acordes'?'duracion':(TABS.includes(h)?h:'cancion'); }
 function showTab(t){
   if(t==='acordes') t='duracion';
@@ -3086,6 +3159,7 @@ function showTab(t){
   placeTuner();
   try{ if(t!=='cancion') history.replaceState(null,'','#'+t); else history.replaceState(null,'',location.pathname+location.search); }catch(e){}
   if(t==='afinador'){ tunStrings(); metroSync(); }
+  if(t==='lista') renderSaved();
   if(t==='duracion'){ renderBars(); renderLines(); }
   if(t==='tono') renderTono();
   if(t==='como'){ renderSongChips(); if(!dict.root&&dict.root!==0) pickFirstSongChord(); }
