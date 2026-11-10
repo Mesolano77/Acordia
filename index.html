@@ -375,6 +375,32 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
         </div>
         <div class="addcol">
           <h3>Pegar texto</h3>
+          <div class="sub">En La Cuerda, Ultimate Guitar o cualquier página: selecciona todo, copia y toca <b>Pegar y limpiar</b>. Acordia quita menús, anuncios y tablaturas y deja solo la letra con los acordes.</div>
+          <div class="row">
+            <button class="btn primary" id="pasteclean">Pegar y limpiar</button>
+            <button class="btn" id="cleanbox">Limpiar el texto de abajo</button>
+          </div>
+          <div class="sub" id="pastehint" hidden>Este navegador no deja leer el portapapeles con un botón. Mantén el dedo en el cuadro de abajo y elige <b>Pegar</b>: Acordia lo limpia sola.</div>
+          <details id="atajo">
+            <summary>Atajo de iPhone: “Mandar a Acordia”</summary>
+            <div>
+              <div class="sub">Con este atajo, desde la página de la canción en Safari tocas <b>Compartir → Mandar a Acordia</b> y la canción queda copiada. Luego abres Acordia y tocas <b>Pegar y limpiar</b>. Se arma una sola vez (unos 5 minutos).</div>
+              <div class="sub"><b>Antes, qué permiso pide y por qué.</b> Los atajos que leen una página necesitan que actives <i>Permitir ejecutar scripts</i>. Es un permiso del iPhone (no es una contraseña ni una cuenta) que deja a <i>tus</i> atajos leer la página que tú les compartes, y solo en ese momento. Este atajo solo lee el texto de la canción y lo copia; no envía nada a ningún sitio. Se guarda en tu teléfono y se puede apagar cuando quieras. Instala solo atajos cuyo código conozcas, como este, que puedes ver abajo.</div>
+              <ol class="steps">
+                <li><b>Activar el permiso:</b> Ajustes → Apps → Atajos → Avanzado → enciende <b>Permitir ejecutar scripts</b>. (En iOS más viejos: Ajustes → Atajos → Avanzado.)</li>
+                <li><b>Copiar el código:</b> toca <b>Copiar código del atajo</b> aquí abajo.</li>
+                <li><b>Crear el atajo:</b> abre la app <b>Atajos</b>, toca <b>+</b> arriba a la derecha y ponle de nombre <b>Mandar a Acordia</b>.</li>
+                <li><b>Que salga en Compartir:</b> toca la <b>ⓘ</b> (o el nombre arriba → Detalles) y enciende <b>Mostrar en la hoja para compartir</b>. En “Recibe”, deja solo <b>Páginas web de Safari</b>. Toca OK.</li>
+                <li><b>Acción 1:</b> toca <b>Añadir acción</b>, busca <b>Ejecutar JavaScript en página web</b> y agrégala. Borra el código de ejemplo que trae, mantén el dedo en el cuadro y elige <b>Pegar</b>.</li>
+                <li><b>Acción 2:</b> busca <b>Copiar al portapapeles</b> y agrégala debajo (debe decir “Copiar Resultado de JavaScript”).</li>
+                <li><b>Acción 3 (opcional):</b> busca <b>Mostrar notificación</b> y escribe: <i>Canción copiada. Abre Acordia y toca Pegar y limpiar.</i> Toca <b>OK</b> para guardar.</li>
+                <li><b>Usarlo:</b> en Safari abre la canción (La Cuerda, Ultimate Guitar…), toca <b>Compartir</b> (el cuadro con flecha) → <b>Mandar a Acordia</b>. La primera vez en cada sitio pregunta si lo permites: elige <b>Permitir</b>. Luego abre Acordia → <b>Pegar y limpiar</b>.</li>
+              </ol>
+              <div class="row"><button class="btn primary" id="copyatajo">Copiar código del atajo</button></div>
+              <textarea id="atajocode" readonly spellcheck="false" rows="7" style="font-size:12px"></textarea>
+              <div class="sub">Si en Compartir no aparece, baja hasta <b>Editar acciones</b> y actívalo. Funciona con páginas abiertas en Safari; en la app de Ultimate Guitar no.</div>
+            </div>
+          </details>
           <label class="sub" for="src">Letra con acordes (pega aquí el chart completo)</label>
           <textarea id="src" spellcheck="false"></textarea>
           <div class="row">
@@ -1192,11 +1218,12 @@ function songs(){
 }
 function snap(){ return JSON.stringify([state.title||'',state.text,state.shift||0,state.rhythm||null,state.timing||null,state.meter||4]); }
 function snapOf(x){ return JSON.stringify([x.title||'',x.text,x.shift||0,x.rhythm||null,x.timing||null,x.meter||4]); }
-function isDirty(){ if(!state.text.trim()) return false; const e=state.libId&&songs().find(x=>x.id===state.libId); return !e||snapOf(e)!==snap(); }
+function isSample(){ return !state.libId&&state.text===SAMPLE; }
+function isDirty(){ if(!state.text.trim()||isSample()) return false; const e=state.libId&&songs().find(x=>x.id===state.libId); return !e||snapOf(e)!==snap(); }
 function updateSaveState(){
   const st=$('savestat'); if(!st) return;
   const e=state.libId&&songs().find(x=>x.id===state.libId);
-  if(!state.text.trim()){ st.textContent=''; st.className='savestat'; return; }
+  if(!state.text.trim()||isSample()){ st.textContent=''; st.className='savestat'; return; }
   if(isDirty()){ st.textContent=e?'● Cambios sin guardar':'● Sin guardar'; st.className='savestat dirty'; }
   else { st.textContent='✓ Guardada'; st.className='savestat'; }
 }
@@ -1953,6 +1980,87 @@ $('cpopact').addEventListener('click',e=>{
 $('cpopx').onclick=closePop;
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&pop) closePop(); });
 document.addEventListener('pointerdown',e=>{ if(pop&&!e.target.closest('#cpop')&&!e.target.closest('#chart .w')&&!e.target.closest('#chart .ch')) closePop(); });
+/* ---------- pegar y limpiar (texto copiado de una página) ---------- */
+const JUNK=/(^|\b)(inicio|buscar|search|men[uú]|iniciar sesi[oó]n|registr\w*|log ?in|sign ?(in|up)|compartir|share|imprimir|print|favorit\w*|comentarios?|comments?|reportar|report|calific\w*|rating|votos?|votes?|ver m[aá]s|see more|publicidad|advertis\w*|cookies?|pol[ií]tica|privacidad|privacy|t[eé]rminos|terms|copyright|todos los derechos|all rights|descarg\w*|download|suscr[ií]b\w*|subscribe|transport\w*|transponer|transpose|auto ?scroll|simplificar|simplify|acordes usados|chords used|afinaci[oó]n|tuning|dificultad|difficulty|strumming|rasgueo|tablatura|ultimate.?guitar|lacuerda|la cuerda|este fichero|this file|escrito por|written by|enviado por|submitted by|interpretaci[oó]n personal|acordes para|chords for|letra y acordes|lyrics and chords|go pro|ug pro|youtube|facebook|twitter|whatsapp|instagram|spotify)(\b|$)/i;
+const TABLINE=/^\s*[eEbBgGdDaA]?\s*\|[-0-9a-zA-Z|\/\\~().*^\s]*$/;
+const META=/^\s*(tuning|afinaci[oó]n|key|tono|capo|difficulty|dificultad|bpm|tempo|author|autor)\s*:/i;
+function isChordish(line){
+  if(META.test(line)) return false;
+  const toks=line.replace(/\[\/?ch\]/g,'').trim().split(/\s+/).filter(Boolean); if(!toks.length) return false;
+  const lab=toks.filter(t=>LABEL_RE.test(t)).length, ch=toks.filter(t=>analyzeToken(t)).length;
+  return ch>0&&ch>=0.6*Math.max(toks.length-lab,1);
+}
+function isTab(l){ return TABLINE.test(l)&&(l.match(/-/g)||[]).length>=4; }
+function isUrl(l){ return /https?:\/\/|www\.|\.(com|net|org)\b/i.test(l); }
+function cleanPasted(raw){
+  let t=String(raw).replace(/\r\n?/g,'\n').replace(/ /g,' ').replace(/\t/g,'    ').replace(/\[\/?(ch|tab)\]/g,'');
+  let title='';
+  let L=t.split('\n').map(x=>x.replace(/\s+$/,''));
+  if(L[0]&&L[0].trim()==='ACORDIA'){ title=(L[1]||'').trim(); L=L.slice(2); }
+  const total=L.filter(x=>x.trim()).length;
+  const ch=L.map(isChordish);
+  const F=ch.indexOf(true), Lc=ch.lastIndexOf(true);
+  if(F<0) return {text:L.join('\n').trim(),title,removed:0,found:false};
+  // inicio: etiquetas de sección justo antes del primer acorde
+  let a=F; for(let k=F-1;k>=0&&k>=F-4;k--){ const x=L[k].trim(); if(!x) continue; if(/^\[.{1,24}\]$/.test(x)||/^(intro|coro|verso|estrofa|puente|pre-?coro|final|solo|interludio|outro|chorus|verse|bridge|pre-?chorus)\b.{0,16}$/i.test(x)) a=k; else break; }
+  // final: letra que sigue al último acorde hasta encontrar basura
+  let b=Lc, extra=0;
+  for(let k=Lc+1;k<L.length&&extra<30;k++){ const x=L[k].trim(); if(x&&(JUNK.test(x)||isUrl(x))) break; if(x&&!isTab(L[k])) b=k; extra++; }
+  let out=L.slice(a,b+1).filter(x=>!(isTab(x)||isUrl(x)||META.test(x)||(x.trim()&&JUNK.test(x.trim())&&!isChordish(x))));
+  out=out.join('\n').replace(/\n{3,}/g,'\n\n').split('\n');
+  if(!title){
+    for(let k=0;k<F&&k<40;k++){ const x=L[k].trim(); if(!x||x.length>80||isChordish(L[k])||isUrl(x)) continue; if(JUNK.test(x)&&!/(acordes|chords) (de|para|by|for)/i.test(x)) continue; title=x; break; }
+  }
+  title=title.replace(/^(letra y )?acordes (de|para)\s+/i,'').replace(/\s*(chords|acordes|tab|tabs|letra)\s*(by|de|por)?.*$/i,m=>/ (by|de|por) /i.test(m)?'':'').replace(/\s*\((ver\.?|version|versi[oó]n)\s*\d+\)\s*$/i,'').trim();
+  const kept=out.filter(x=>x.trim()).length;
+  return {text:out.join('\n').replace(/^(\s*\n)+/,'').replace(/\s+$/,''),title:title.slice(0,80),removed:Math.max(0,total-kept),found:true};
+}
+function applyCleaned(raw,how){
+  const r=cleanPasted(raw);
+  if(!r.text.trim()){ toast('No encontré texto para pegar.'); return; }
+  undoStack.push(state.text); if(undoStack.length>40) undoStack.shift(); $('undo').disabled=false;
+  stop(); Object.assign(state,{text:r.text,shift:0,timing:null,rhythm:null,libId:null});
+  if(r.title) state.title=r.title;
+  selBar=null; selBlk=null; load(); renderSaved();
+  toast(r.found?('Listo: '+(r.removed?'quité '+r.removed+' línea'+(r.removed>1?'s':'')+' que no eran de la canción. ':'')+'Revisa el título y los acordes; si algo falta, toca Deshacer.'):'Pegué el texto, pero no encontré acordes. Revisa que copiaste la canción con sus acordes.');
+  try{ document.querySelector('.sheet').scrollIntoView({block:'start'}); }catch(e){}
+}
+let cleanNextPaste=false;
+$('pasteclean').onclick=async e=>{
+  if(!confirmDiscard(e.currentTarget,'Pegar y limpiar')) return;
+  try{
+    if(!navigator.clipboard||!navigator.clipboard.readText) throw new Error('no');
+    const t=await navigator.clipboard.readText();
+    if(!t||!t.trim()){ toast('El portapapeles está vacío. Primero copia la canción en la otra página.'); return; }
+    applyCleaned(t);
+  }catch(err){
+    cleanNextPaste=true; $('pastehint').hidden=false; $('src').value=''; try{ $('src').focus(); }catch(e2){}
+    toast('Mantén el dedo en el cuadro de texto y elige Pegar.');
+  }
+};
+$('cleanbox').onclick=()=>{ if(!$('src').value.trim()){ toast('El cuadro está vacío.'); return; } applyCleaned($('src').value); };
+$('src').addEventListener('paste',e=>{
+  const t=(e.clipboardData||window.clipboardData).getData('text'); if(!t) return;
+  const looksPage=/^ACORDIA\n/.test(t)||t.split('\n').some(l=>l.trim()&&(JUNK.test(l.trim())||isTab(l)||isUrl(l)));
+  if(cleanNextPaste||(!$('src').value.trim()&&looksPage)){ e.preventDefault(); cleanNextPaste=false; $('pastehint').hidden=true; applyCleaned(t); }
+});
+
+/* ---------- atajo de iPhone ---------- */
+const ATAJO_JS=[
+"var best='';",
+"document.querySelectorAll('pre').forEach(function(e){var t=e.innerText||'';if(t.length>best.length)best=t;});",
+"if(best.length<80){best=document.body.innerText;}",
+"var h=document.querySelector('h1');",
+"var title=((h&&h.innerText)||document.title||'').trim();",
+"completion('ACORDIA\\n'+title+'\\n'+best);"].join('\n');
+$('atajocode').value=ATAJO_JS;
+$('copyatajo').onclick=()=>{
+  const ta=$('atajocode');
+  const sel=()=>{ try{ ta.focus(); ta.select(); ta.setSelectionRange(0,ta.value.length); }catch(e){} };
+  const fallback=()=>{ sel(); let ok=false; try{ ok=document.execCommand('copy'); }catch(e){} toast(ok?'Código copiado. Ahora ve a la app Atajos.':'Código seleccionado: toca Copiar.'); };
+  try{ navigator.clipboard.writeText(ATAJO_JS).then(()=>toast('Código copiado. Ahora ve a la app Atajos.'),fallback); }catch(e){ fallback(); }
+};
+
 /* ---------- pestañas ---------- */
 const TABS=['cancion','duracion','tono','como'];
 function tabFromHash(){ const h=location.hash.slice(1); return h==='acordes'?'duracion':(TABS.includes(h)?h:'cancion'); }
