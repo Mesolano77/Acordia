@@ -663,9 +663,10 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
   <div id="tunslotA">
   <section class="block card" id="tuncard">
     <div class="label">Afinador de guitarra</div>
-    <div class="sub">Toca una cuerda al aire cerca del teléfono y gira la clavija hasta que la raya quede en el centro y diga <b>¡Afinada!</b></div>
-    <div class="sub"><b>Sobre el micrófono:</b> la primera vez el teléfono te preguntará si Acordia puede usarlo. Solo escucha mientras el afinador está encendido; el sonido se analiza en el mismo teléfono, no se graba ni se envía a ningún lado, y se apaga al salir de esta pestaña.</div>
+    <div class="sub">Toca una cuerda al aire cerca del micrófono (del teléfono o de la computadora) y gira la clavija hasta que la raya quede en el centro y diga <b>¡Afinada!</b></div>
+    <div class="sub"><b>Sobre el micrófono:</b> la primera vez el teléfono o el navegador te preguntará si Acordia puede usarlo. Solo escucha mientras el afinador está encendido; el sonido se analiza en el mismo aparato, no se graba ni se envía a ningún lado, y se apaga al salir de esta pestaña.</div>
     <div class="row"><button class="btn primary" id="tunbtn" type="button">🎤 Encender afinador</button><div class="seg" id="tunmode" role="group" aria-label="Qué afinar"><button data-tmode="guitarra" aria-pressed="true" type="button">Guitarra</button><button data-tmode="libre" aria-pressed="false" type="button">Cualquier nota</button></div></div>
+    <div class="sub" id="tunclaude" hidden><span id="tunclaudet">Si abriste Acordia dentro de Claude y el afinador no escucha, ábrelo en la app pública (en este mismo dispositivo):</span> <a class="btn primary" id="tunopen" href="https://mesolano77.github.io/acordia/#afinador" target="_blank" rel="noopener">Abrir el afinador con micrófono ↗</a></div>
     <div class="sub" id="tunerr" hidden></div>
     <div class="tunread" id="tunread" hidden>
       <div class="tnote" id="tnote">—</div>
@@ -2656,7 +2657,7 @@ async function tunStart(){
   }catch(err){ $('tunbtn').disabled=false; $('tunbtn').textContent='🎤 Encender afinador'; tunFail(err&&err.name); return; }
   tun.src=ctx.createMediaStreamSource(tun.stream); tun.an=ctx.createAnalyser(); tun.an.fftSize=4096; tun.src.connect(tun.an);
   tun.buf=new Float32Array(tun.an.fftSize); tun.on=true; tun.hist=[]; tun.quiet=0;
-  $('tunbtn').disabled=false; $('tunbtn').textContent='■ Apagar afinador'; $('tunerr').hidden=true; $('tunread').hidden=false;
+  $('tunbtn').disabled=false; $('tunbtn').textContent='■ Apagar afinador'; $('tunerr').hidden=true; $('tunclaude').hidden=true; $('tunread').hidden=false;
   tunShow(-1); clearInterval(tun.timer); tun.timer=setInterval(tunLoop,60);
 }
 function tunStop(){
@@ -2668,12 +2669,14 @@ function tunStop(){
 function tunFail(kind){
   const inClaude=!!window.claude||window.self!==window.top;
   let m;
-  if(kind==='NotAllowedError'||kind==='SecurityError') m=inClaude?'Dentro de Claude esta página no puede usar el micrófono. Abre la app pública de Acordia (mesolano77.github.io/acordia) para usar el afinador; aquí puedes afinar de oído con los botones de las cuerdas.':'El micrófono no tiene permiso. En el iPhone: toca <b>aA</b> en la barra de Safari → <b>Ajustes del sitio web</b> → <b>Micrófono</b> → <b>Permitir</b>, y vuelve a tocar Encender afinador.';
+  if(inClaude&&kind!=='NotFoundError'){ $('tunclaudet').textContent='Dentro de Claude esta página no puede usar el micrófono. Para el afinador con micrófono, ábrelo en la app pública de Acordia (en este mismo dispositivo):'; $('tunclaude').hidden=false; $('tunerr').hidden=true; try{ $('tunclaude').scrollIntoView({block:'nearest'}); }catch(e){} return; }
+  if(kind==='NotAllowedError'||kind==='SecurityError') m='El micrófono no tiene permiso. En el iPhone: toca <b>aA</b> en la barra de Safari → <b>Ajustes del sitio web</b> → <b>Micrófono</b> → <b>Permitir</b>. En la computadora: haz clic en el ícono a la izquierda de la dirección de la página → <b>Micrófono</b> → <b>Permitir</b>; en Mac revisa también <b>Ajustes del Sistema → Privacidad y seguridad → Micrófono</b> y activa tu navegador. Luego vuelve a tocar Encender afinador.';
   else if(kind==='NotFoundError') m='No encontré un micrófono en este dispositivo.';
-  else m='Este navegador no deja usar el micrófono aquí. Abre la app pública de Acordia en Safari o Chrome para usar el afinador; aquí puedes afinar de oído con los botones de las cuerdas.';
+  else m='Este navegador no deja usar el micrófono aquí. Abre Acordia en Safari o Chrome para usar el afinador; aquí puedes afinar de oído con los botones de las cuerdas.';
   $('tunerr').innerHTML=m; $('tunerr').hidden=false;
 }
 $('tunbtn').onclick=()=>{ tun.on?tunStop():tunStart(); };
+if(window.self!==window.top) $('tunclaude').hidden=false;
 /* el afinador vive en su pestaña y, con guitarra, también debajo de la guitarra en Canción */
 function placeTuner(){
   const card=$('tuncard'), C=$('tunslotC'), A=$('tunslotA');
