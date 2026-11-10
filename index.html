@@ -919,7 +919,10 @@ function fillTargets(){
 function norm(s){ s=((s%12)+12)%12; return s>6?s-12:s; }
 
 /* ---------- audio ---------- */
-let ctx=null, master=null, comp=null, verb=null;
+let ctx=null, master=null, comp=null, verb=null, sounding=null;
+/* tocar otra vez lo mismo mientras suena lo detiene */
+function toggleOff(key){ if(ctx&&sounding&&sounding.key===key&&ctx.currentTime<sounding.until){ silence(0.06); return true; } return false; }
+function markSound(key,dur){ sounding={key,until:ctx.currentTime+dur}; }
 const TAP_DUR=7, REL=1.1; /* un acorde tocado suena ~7 s y se apaga solo, o al tocar el siguiente */
 function newMaster(){ master=ctx.createGain(); master.gain.value=0.55; master.connect(comp); if(verb) master.connect(verb); }
 function makeVerb(){
@@ -934,7 +937,7 @@ function ac(){
   return ctx;
 }
 function silence(tc){
-  if(!ctx) return; const old=master; tc=tc||0.04;
+  if(!ctx) return; const old=master; tc=tc||0.04; sounding=null;
   try{ old.gain.setTargetAtTime(0.0001,ctx.currentTime,tc); }catch(e){}
   setTimeout(()=>{ try{ old.disconnect(); }catch(e){} },Math.max(400,tc*12000));
   newMaster();
@@ -1139,7 +1142,7 @@ $('bars').addEventListener('click',e=>{
   const b=e.target.closest('.bseg'); if(!b) return;
   const i=+b.dataset.k; selBar=i; selIndex=i;
   if(playing){ const f=followRun; stop(); selIndex=i; start({follow:f}); renderBars(); return; }
-  if(!playing){ ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); highlight(i,false); }
+  if(!playing){ if(toggleOff('c'+i)) return; ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); markSound('c'+i,TAP_DUR); highlight(i,false); }
   renderBars();
 });
 $('durpick').addEventListener('click',e=>{
@@ -1248,10 +1251,11 @@ $('bpm').oninput=e=>$('bpmv').textContent=e.target.value;
 $('play').onclick=()=>playing?stop():start();
 $('pitch').onclick=()=>{
   if(!parsed.chords.length) return;
-  const c=ac(); const T=(parsed.origKey+state.shift+(parsed.minor?9:0)+120)%12;
+  if(toggleOff('pitch')) return;
+  const c=ac(); if(!playing) silence(0.06); const T=(parsed.origKey+state.shift+(parsed.minor?9:0)+120)%12;
   let m=60; while(m%12!==T) m++; if(m>66) m-=12;
   const third=parsed.minor?3:4, t=c.currentTime+0.03;
-  note(m,t,1.6,0.3); note(m,t+0.8,0.7,0.22); note(m+third,t+1.4,0.7,0.22); note(m+7,t+2.0,0.7,0.22); note(m+12,t+2.6,1.4,0.24);
+  note(m,t,1.6,0.3); note(m,t+0.8,0.7,0.22); note(m+third,t+1.4,0.7,0.22); note(m+7,t+2.0,0.7,0.22); note(m+12,t+2.6,1.4,0.24); if(!playing) markSound('pitch',4.5);
   $('notes').textContent='Tónica: '+nmLong(T)+' ('+(parsed.minor?'menor':'mayor')+')';
 };
 function srcLines(){ return state.text.replace(/\t/g,'    ').split(/\r?\n/); }
@@ -1316,7 +1320,7 @@ $('chart').addEventListener('click',e=>{
   if(pop) closePop();
   const i=+b.dataset.i; selIndex=i;
   if(playing){ stop(); selIndex=i; start(); return; }
-  ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); highlight(i);
+  if(toggleOff('c'+i)) return; ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); markSound('c'+i,TAP_DUR); highlight(i);
 });
 /* la ventana del acorde se abre con dos toques o manteniendo presionado (un toque solo suena) */
 let lpTimer=null, lpStart=null, lpFired=false, wordHint=false;
@@ -1804,6 +1808,11 @@ function absVoicing(root,iv,bassPc,inv){
   return {notes,bass};
 }
 function playAbs(v,slow){
+  const key='a'+v.notes.join('.')+'|'+v.bass+'|'+(v.sh?v.sh.f.join('.'):'')+(slow?'s':'');
+  if(!playing&&toggleOff(key)) return;
+  playAbs2(v,slow); markSound(key,slow?TAP_DUR+0.6*(v.notes.length+2):TAP_DUR);
+}
+function playAbs2(v,slow){
   ac(); if(playing) stop(); else { timers.forEach(clearTimeout); timers=[]; silence(0.09); } const t=ctx.currentTime+0.05;
   if(inst==='guitarra'&&v.sh){ const ms=v.sh.midi.filter(m=>m!=null); if(slow){ ms.forEach((m,k)=>gnote(m,t+0.5*k,1.4,0.22)); strum(ms,t+0.5*ms.length+0.3,TAP_DUR,false,0.2); } else strum(ms,t,TAP_DUR,false,0.2); return; }
   if(slow){ note(v.bass,t,1.2,0.3); v.notes.forEach((n,k)=>note(n,t+0.55*(k+1),1.0,0.2)); const te=t+0.55*(v.notes.length+1); note(v.bass,te,TAP_DUR,0.3); v.notes.forEach(n=>note(n,te+0.01,TAP_DUR,0.17)); }
@@ -1888,7 +1897,7 @@ $('lines').addEventListener('click',e=>{
   if(e.target.closest('[data-from]')&&selBlk!=null){ stop(); selIndex=selBlk; start({follow:false}); return; }
   const b=e.target.closest('.blk');
   if(b){ const i=+b.dataset.i; selBlk=(selBlk===i&&!playing)?null:i; selIndex=i;
-    if(playing){ stop(); start({follow:false}); } else { ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); }
+    if(playing){ stop(); start({follow:false}); } else { if(toggleOff('c'+i)) return; ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); markSound('c'+i,TAP_DUR); }
     renderLines(); highlight(i,false); }
 });
 $('autofix').onclick=()=>{ if(!parsed.chords.length) return; pushRUndo(); $('usetiming').checked=false; setRhythm(autoRhythm(),'Listo: Acordia ajustó cada acorde según dónde está en la letra. Escucha cada línea con ▶.'); };
@@ -2137,7 +2146,7 @@ $('cpopf').addEventListener('submit',e=>{ e.preventDefault(); applyPop($('cpopi'
 $('cpopc').addEventListener('click',e=>{ const c=e.target.closest('[data-n]'); if(c) applyPop(c.dataset.n); });
 $('cpopact').addEventListener('click',e=>{
   const a=e.target.closest('[data-act]'); if(!a||!pop) return; const i=pop.i;
-  if(a.dataset.act==='hear'){ ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); return; }
+  if(a.dataset.act==='hear'){ if(toggleOff('c'+i)) return; ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); markSound('c'+i,TAP_DUR); return; }
   if(a.dataset.act==='como'){ const c=parsed.chords[i]; closePop(); showTab('como'); setDict((c.root+state.shift+120)%12,c.suf,c.bass==null?null:(c.bass+state.shift+120)%12); return; }
   if(a.dataset.act==='del'){ closePop(); deleteChord(i); }
 });
@@ -2484,7 +2493,8 @@ $('mroot').onchange=()=>{ modeSel.root=+$('mroot').value; renderModes(); };
 $('modecard').addEventListener('click',e=>{
   const m=e.target.closest('[data-mode]'); if(m){ modeSel.m=+m.dataset.mode; renderModes(); return; }
   if(e.target.closest('#mplay')){
-    ac(); stop(); const [,sc]=MODES[modeSel.m], R=modeSel.root; showScale();
+    if(toggleOff('scale'+modeSel.m+'.'+modeSel.root)) return;
+    ac(); stop(); markSound('scale'+modeSel.m+'.'+modeSel.root,MODES[modeSel.m][1].length*0.6+0.8); const [,sc]=MODES[modeSel.m], R=modeSel.root; showScale();
     const base=(inst==='guitarra'?52:60)+R, seq=sc.map(x=>base+x).concat([base+12]); const all=seq.concat(seq.slice(0,-1).reverse());
     let t=ctx.currentTime+0.05; all.forEach((n,k)=>{ note(n,t,0.5,0.24); t+=0.3; }); return;
   }
@@ -2645,7 +2655,7 @@ function placeTuner(){
   if(!visible&&tun.on) tunStop();
 }
 $('tunmode').addEventListener('click',e=>{ const b=e.target.closest('[data-tmode]'); if(!b) return; tun.mode=b.dataset.tmode; $('tunmode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); $('tstrings').hidden=tun.mode!=='guitarra'; tun.hist=[]; });
-$('tstrings').addEventListener('click',e=>{ const b=e.target.closest('[data-ref]'); if(!b) return; ac(); const t=ctx.currentTime+0.03; gnote(+b.dataset.ref,t,4,0.32); });
+$('tstrings').addEventListener('click',e=>{ const b=e.target.closest('[data-ref]'); if(!b) return; if(toggleOff('r'+b.dataset.ref)) return; ac(); silence(0.06); const t=ctx.currentTime+0.03; gnote(+b.dataset.ref,t,4,0.32); markSound('r'+b.dataset.ref,4.5); });
 
 /* ---------- enviar por enlace, copia de Mis canciones ---------- */
 const PUBLIC_URL='https://mesolano77.github.io/acordia/';
