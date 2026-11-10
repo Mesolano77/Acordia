@@ -88,7 +88,13 @@ header.top p{margin:2px 0 0; color:var(--muted)}
 .gsvg .ln{stroke:var(--ink)} .gsvg .nut{fill:var(--ink)}
 .gsvg .dot,.gsvg .bar{fill:var(--felt)} .gsvg .dot.bs{fill:var(--bass)}
 .gsvg .open{fill:none; stroke:var(--ink)} .gsvg .open.bs{stroke:var(--bass)}
-.gsvg .fn{fill:var(--on-ink); font-weight:700} .gsvg .t{fill:var(--ink)} .gsvg .tb{fill:var(--bass)} .gsvg .tm{fill:var(--muted)}
+.gsvg .fn{fill:var(--on-ink); font-weight:700; pointer-events:none}
+.gsvg [data-m]{cursor:pointer}
+.kb [data-m],.piano [data-m]{cursor:pointer}
+.kb .press,.piano .press{filter:brightness(.8)}
+.gsvg .press{opacity:.6}
+.mnotes .mn[data-pc]{cursor:pointer; background:var(--surface); color:var(--ink); font:inherit}
+.mnotes .mn.on{background:var(--felt); border-color:var(--felt)} .mnotes .mn.on b,.mnotes .mn.on i{color:var(--on-ink)} .gsvg .t{fill:var(--ink)} .gsvg .tb{fill:var(--bass)} .gsvg .tm{fill:var(--muted)}
 .fbwrap{width:100%; overflow-x:auto} .gsvg.fb{width:100%; min-width:520px}
 .gstr{margin:4px 0; padding-left:18px; display:flex; flex-direction:column; gap:2px; font-size:.92rem}
 .mtitle{font-size:1.05rem}
@@ -124,6 +130,10 @@ header.top p{margin:2px 0 0; color:var(--muted)}
 .tmsg{font-weight:700; text-align:center; color:var(--tc); min-height:1.3em}
 .tpanel.ok .tnote{color:#3DDC84; text-shadow:0 0 18px rgba(61,220,132,.55)}
 .tpanel.idle .tnote{color:#5B6475}
+.tpanel.hold .needle,.tpanel.hold .tnote{opacity:.6}
+.tpanel.hold .tmsg::after{content:' · última lectura'; color:#8D97AA; font-weight:500}
+.tver{font:500 .68rem var(--f-mono); color:#5B6475; margin-top:4px}
+.tstr.lock{border-color:var(--felt); box-shadow:0 0 0 2px var(--felt)}
 .tstrs{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px}
 .tstr{display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 2px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); cursor:pointer; min-width:0}
 .tstr b{font-size:1.05rem} .tstr span{font-size:.66rem; color:var(--muted); text-align:center}
@@ -424,7 +434,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
         <div class="sub">Las canciones guardadas quedan en el navegador de este dispositivo. Para tenerlas en otro, ábrelas ahí y vuelve a pegarlas.</div>
       </div>
     </details>
-    <div class="credit">Sonido de piano: Salamander Grand Piano, de Alexander Holm (licencia CC BY 3.0).</div>
+    <div class="credit">Sonido de piano: Salamander Grand Piano, de Alexander Holm (licencia CC BY 3.0). <span id="appver"></span></div>
     </div>
   </div>
   <div class="colR">
@@ -606,7 +616,11 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
   <section class="block card">
     <div class="label">Acordes del tono</div>
     <div class="keyline" id="t3key">—</div>
-    <div class="sub">Toca un acorde para oírlo y verlo en el piano o en la guitarra. El tono se cambia en la pestaña <button class="linkbtn" data-goto="cancion">Canción</button>.</div>
+    <div class="row"><label class="sub" for="tkroot">Ver la escala de</label><select id="tkroot" style="flex:0 1 auto"></select><div class="seg" id="tkmode" role="group" aria-label="Mayor o menor"><button type="button" data-km="maj">Mayor</button><button type="button" data-km="min">Menor</button></div><button class="btn" type="button" id="tksong" hidden>Volver al tono de la canción</button></div>
+    <div class="label" style="margin-top:4px">Notas de la escala</div>
+    <div class="mnotes" id="tknotes"></div>
+    <div class="row"><button class="btn primary" type="button" id="tkplay">▶ Escuchar la escala</button></div>
+    <div class="sub">Toca una nota o un acorde para oírlo y verlo en el piano o en la guitarra; en el dibujo también puedes tocar las teclas o los puntos. Todos los acordes de esta pestaña siguen a la escala elegida. El tono de la canción se cambia en <button class="linkbtn" data-goto="cancion">Canción</button>.</div>
     <div class="row"><span class="sub">Instrumento</span><div class="seg" role="group" aria-label="Instrumento"><button data-inst="piano" aria-pressed="true">Piano</button><button data-inst="guitarra" aria-pressed="false">Guitarra</button></div></div>
     <div class="legend leg-p"><span><i class="sw ch"></i>Acorde (mano derecha)</span><span><i class="sw bs"></i>Bajo (mano izquierda)</span></div>
     <div class="legend leg-g" hidden><span><i class="sw ch"></i>Notas del acorde</span><span><i class="sw bs"></i>Bajo (la cuerda más grave que suena)</span></div>
@@ -696,9 +710,10 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
       <div class="tgauge" id="tgauge" aria-hidden="true"></div>
       <div class="tfreq" id="tfreq"></div>
       <div class="tmsg" id="tmsg"></div>
+      <div class="tver" id="tver"></div>
     </div>
     <div class="label" style="margin-top:6px">Notas de referencia (afinación normal)</div>
-    <div class="sub">Toca un botón para oír cómo debe sonar cada cuerda, de la más gruesa (6.ª) a la más delgada (1.ª). Con el afinador encendido, se marca la cuerda que estás tocando.</div>
+    <div class="sub">Con el afinador <b>apagado</b>, toca un botón para oír cómo debe sonar cada cuerda, de la más gruesa (6.ª) a la más delgada (1.ª). Con el afinador <b>encendido</b>, se marca sola la cuerda que tocas; si quieres, toca un botón para <b>fijar</b> esa cuerda (otra vez para soltarla).</div>
     <div class="tstrs" id="tstrings"></div>
   </section>
   </div>
@@ -808,7 +823,11 @@ function analyzeToken(tok){
   return {pre:m[1],post:m[3],parts,chords,count:chords.filter(Boolean).length};
 }
 
-function pref(){ return FLAT_KEYS.has((parsed.origKey+state.shift+120)%12)?FLAT:SHARP; }
+function pref(){
+  /* en la pestaña Tono con otra escala elegida, los nombres siguen a esa escala (B♭, E♭… o F♯, C♯…) */
+  if(typeof toneSel!=='undefined'&&toneSel){ const tt=$('tab-tono'); if(tt&&!tt.hidden){ const r=(toneSel.minor?ROOT_MIN:ROOT_MAJ)[toneSel.tonic], M=toneSel.minor?(toneSel.tonic+3)%12:toneSel.tonic; return /b/.test(r)?FLAT:/#/.test(r)?SHARP:(FLAT_KEYS.has(M)?FLAT:SHARP); } }
+  return FLAT_KEYS.has((parsed.origKey+state.shift+120)%12)?FLAT:SHARP;
+}
 function nm(pc){
   const n=pref()[(pc+120)%12];
   return state.nota==='la'?LAT[n[0]]+n.slice(1):n;
@@ -1956,6 +1975,44 @@ const PROGS={
   min:[['iiø – V7 – i (jazz)',[[2,'m7b5'],[7,'7'],[0,'m7'],[0,'m7']]],['i – VI – III – VII',[[0,'m'],[8,''],[3,''],[10,'']]],
        ['Blues menor',[[0,'m7'],[0,'m7'],[0,'m7'],[0,'m7'],[5,'m7'],[5,'m7'],[0,'m7'],[0,'m7'],[8,'7'],[7,'7'],[0,'m7'],[7,'7']]]]
 };
+/* escala que muestra la pestaña Tono: la de la canción, o la que elija la persona */
+let toneSel=null;
+function toneCtx(){ return toneSel||(parsed.chords.length?keyCtx():{tonic:0,minor:false}); }
+const LET='CDEFGAB', LPCS=[0,2,4,5,7,9,11];
+const ROOT_MAJ=['C','Db','D','Eb','E','F','F#','G','Ab','A','Bb','B'], ROOT_MIN=['C','C#','D','Eb','E','F','F#','G','G#','A','Bb','B'];
+function pretty(n){ const L=state.nota==='la'?LAT[n[0]]:n[0]; return L+n.slice(1).replace(/##/,'𝄪').replace(/#/,'♯').replace(/bb/,'𝄫').replace(/b/,'♭'); }
+function spellRoot(pc,minor){ return pretty((minor?ROOT_MIN:ROOT_MAJ)[pc]); }
+function spellScale(pc,minor){
+  const r=(minor?ROOT_MIN:ROOT_MAJ)[pc], li=LET.indexOf(r[0]), iv=minor?[0,2,3,5,7,8,10]:[0,2,4,5,7,9,11];
+  return iv.map((x,i)=>{ const L=LET[(li+i)%7], want=(pc+x)%12; let d=((want-LPCS[LET.indexOf(L)])%12+12)%12; if(d>6) d-=12; return {pc:want,iv:x,name:pretty(L+(d===1?'#':d===2?'##':d===-1?'b':d===-2?'bb':''))}; });
+}
+function renderScale(){
+  const {tonic,minor}=toneCtx(), sc=spellScale(tonic,minor), deg=minor?['1','2','♭3','4','5','♭6','♭7']:['1','2','3','4','5','6','7'];
+  $('tkroot').innerHTML=ROOT_MAJ.map((n,pc)=>'<option value="'+pc+'"'+(pc===tonic?' selected':'')+'>'+esc(pretty(n))+'</option>').join('');
+  $('tkmode').querySelectorAll('[data-km]').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.km==='min')===minor));
+  $('tksong').hidden=!(toneSel&&parsed.chords.length);
+  $('tknotes').innerHTML=sc.map((n,i)=>'<button type="button" class="mn'+(i===0?' root':'')+'" data-pc="'+n.pc+'" data-i="'+i+'"><b>'+esc(n.name)+'</b><i>'+deg[i]+'</i></button>').join('')+
+    '<button type="button" class="mn root" data-pc="'+sc[0].pc+'" data-i="7"><b>'+esc(sc[0].name)+'</b><i>8</i></button>';
+}
+function scaleMidis(){ const {tonic,minor}=toneCtx(), base=(inst==='guitarra'?52:60)+tonic-(tonic>7?12:0); const iv=minor?[0,2,3,5,7,8,10,12]:[0,2,4,5,7,9,11,12]; return iv.map(x=>base+x); }
+function showScaleTono(hi){
+  const {tonic,minor}=toneCtx(), ms=scaleMidis(), sc=spellScale(tonic,minor);
+  if(inst==='guitarra') $('gtr3').innerHTML='<div class="fbwrap" style="width:100%">'+fretboardSVG(sc.map(n=>n.pc),tonic)+'</div>';
+  else kbShow($('kb3'),{notes:ms.slice(1,7),bass:ms[0]});
+  $('kb3txt').innerHTML='Escala de <b>'+esc(spellRoot(tonic,minor))+' '+(minor?'menor':'mayor')+'</b>: '+esc(sc.map(n=>n.name).concat([sc[0].name]).join(' – '))+(hi!=null?'<br>Nota: <b>'+esc(hi<7?sc[hi].name:sc[0].name)+'</b>':'');
+  document.querySelectorAll('#tknotes .mn').forEach(b=>b.classList.toggle('on',hi!=null&&+b.dataset.i===hi));
+}
+$('tkroot').onchange=()=>{ const m=toneCtx().minor; toneSel={tonic:+$('tkroot').value,minor:m}; renderTono(); showScaleTono(null); };
+$('tkmode').addEventListener('click',e=>{ const b=e.target.closest('[data-km]'); if(!b) return; toneSel={tonic:toneCtx().tonic,minor:b.dataset.km==='min'}; renderTono(); showScaleTono(null); });
+$('tksong').onclick=()=>{ toneSel=null; renderTono(); };
+$('tknotes').addEventListener('click',e=>{ const b=e.target.closest('.mn[data-i]'); if(!b) return; const i=+b.dataset.i, m=scaleMidis()[i]; ac(); if(!playing) silence(0.06); note(m,ctx.currentTime+0.02,2.5,0.32); showScaleTono(i); });
+$('tkplay').onclick=()=>{
+  const key='tkscale'; if(toggleOff(key)) return; ac(); stop();
+  const ms=scaleMidis(), seq=ms.concat(ms.slice(0,-1).reverse()), idx=[0,1,2,3,4,5,6,7,6,5,4,3,2,1,0]; let t=ctx.currentTime+0.05;
+  showScaleTono(null);
+  seq.forEach((m,k)=>{ note(m,t,0.55,0.26); const i=idx[k]; later(()=>showScaleTono(i),(t-ctx.currentTime)*1000); t+=0.34; });
+  later(()=>showScaleTono(null),(t-ctx.currentTime)*1000+300); markSound(key,t-ctx.currentTime);
+};
 function keyCtx(){ const T=(parsed.origKey+state.shift+120)%12; return parsed.minor?{tonic:(T+9)%12,minor:true}:{tonic:T,minor:false}; }
 function ccHTML(root,suf,bass,rn,role,kind,k){
   const nmS=absName(root,suf,bass), alt=withNota(otherNota(),()=>absName(root,suf,bass));
@@ -1966,9 +2023,10 @@ function renderTono(){
   if(!$('diat')) return;
   if(!kb3Built){ kbBuild($('kb3'),48,83); kb3Built=true; }
   renderModes();
-  if(!parsed.chords.length){ $('t3key').textContent='Primero agrega una canción con acordes'; ['diat','diat7','sugg','progs'].forEach(id=>$(id).innerHTML=''); return; }
-  const {tonic,minor}=keyCtx(), K=minor?'min':'maj';
-  $('t3key').innerHTML='<b>'+esc(nmLong(tonic))+' '+(minor?'menor':'mayor')+'</b> <span class="sub">('+esc(withNota(otherNota(),()=>nmLong(tonic)))+')</span>';
+  const {tonic,minor}=toneCtx(), K=minor?'min':'maj';
+  const fromSong=!toneSel&&parsed.chords.length;
+  $('t3key').innerHTML='<b>'+esc(spellRoot(tonic,minor))+' '+(minor?'menor':'mayor')+'</b> <span class="sub">'+(fromSong?'(tono de la canción)':'(escala elegida)')+'</span>';
+  renderScale();
   $('diat').innerHTML=DIAT[K].map(([d,s,rn,role])=>ccHTML((tonic+d)%12,s,null,rn,role)).join('');
   $('diat7').innerHTML=SEV[K].map(([d,s,rn])=>ccHTML((tonic+d)%12,s,null,rn,'')).join('');
   $('sugg').innerHTML=SUGG[K].map(([title,list])=>'<div class="sgrp"><h4>'+esc(title)+'</h4><div class="cgrid wide">'+list.map(([d,s,bd,rn,when])=>ccHTML((tonic+d)%12,s,bd==null?null:(tonic+bd)%12,rn,when)).join('')+'</div></div>').join('');
@@ -1994,7 +2052,7 @@ $('tab-tono').addEventListener('click',e=>{
   if(sp){ if(playing) stop(); const r=+sp.dataset.r, s=sp.dataset.s, b=sp.dataset.b===''?null:+sp.dataset.b, n=sp.closest('#modecard')?'5':'3';
     document.querySelectorAll('.prog .seq span.on').forEach(x=>x.classList.remove('on')); sp.classList.add('on'); playAbs(showAbsIn(n,r,s,b)); return; }
   const pb=e.target.closest('.pplay'); if(!pb) return;
-  const {tonic,minor}=keyCtx(); const seq=PROGS[minor?'min':'maj'][+pb.dataset.p][1];
+  const {tonic,minor}=toneCtx(); const seq=PROGS[minor?'min':'maj'][+pb.dataset.p][1];
   playProg(pb,seq.map(([d,s,bd])=>[(tonic+d)%12,s,bd==null?null:(tonic+bd)%12]),'3');
 });
 let progBeats=store.get('atril.pbeats',2);
@@ -2369,15 +2427,15 @@ function gtrSVG(sh,big){
   for(let i=0;i<6;i++) s+='<line class="ln" x1="'+X(i)+'" x2="'+X(i)+'" y1="'+y0+'" y2="'+(y0+nf*fh)+'" stroke-width="'+(1.9-i*0.2).toFixed(1)+'"/>';
   sh.f.forEach((f,i)=>{
     if(f<0) s+='<text class="tm" x="'+X(i)+'" y="'+(y0-12)+'" text-anchor="middle" font-size="13">×</text>';
-    else if(f===0) s+='<circle class="open'+(i===low?' bs':'')+'" cx="'+X(i)+'" cy="'+(y0-16)+'" r="5" stroke-width="1.6"/>';
+    else if(f===0) s+='<circle class="open'+(i===low?' bs':'')+'" data-m="'+TUNING[i]+'" cx="'+X(i)+'" cy="'+(y0-16)+'" r="7" stroke-width="1.6"/>';
   });
   if(sh.barre) s+='<rect class="bar" x="'+(X(sh.barre.from)-9)+'" y="'+(Yf(sh.barre.fret)-9)+'" width="'+(X(sh.barre.to)-X(sh.barre.from)+18)+'" height="18" rx="9"/>';
   sh.f.forEach((f,i)=>{
     if(f<=0) return;
-    s+='<circle class="dot'+(i===low?' bs':'')+'" cx="'+X(i)+'" cy="'+Yf(f)+'" r="9"/>';
+    s+='<circle class="dot'+(i===low?' bs':'')+'" data-m="'+(TUNING[i]+f)+'" cx="'+X(i)+'" cy="'+Yf(f)+'" r="9"/>';
     if(sh.fingers[i]) s+='<text class="fn" x="'+X(i)+'" y="'+(Yf(f)+4)+'" text-anchor="middle" font-size="11">'+sh.fingers[i]+'</text>';
   });
-  names.forEach((n,i)=>{ if(n) s+='<text class="'+(i===low?'tb':'t')+'" x="'+X(i)+'" y="'+(y0+nf*fh+18)+'" text-anchor="middle" font-size="10" font-weight="700">'+esc(n)+'</text>'; });
+  names.forEach((n,i)=>{ if(n) s+='<text class="'+(i===low?'tb':'t')+'" data-m="'+sh.midi[i]+'" x="'+X(i)+'" y="'+(y0+nf*fh+18)+'" text-anchor="middle" font-size="10" font-weight="700">'+esc(n)+'</text>'; });
   return s+'</svg>';
 }
 function gtrText(sh){
@@ -2462,7 +2520,7 @@ function fretboardSVG(pcs,rootPc){
   [3,5,7,9,12].forEach(f=>{ s+='<text class="tm" x="'+(x0+(f-0.5)*fw)+'" y="'+(Y(0)+20)+'" text-anchor="middle" font-size="10">'+f+'</text>'; });
   for(let i=0;i<6;i++) for(let f=0;f<=N;f++){
     const pc=(TUNING[i]+f)%12; if(!pcs.includes(pc)) continue;
-    const r=pc===rootPc; s+='<circle class="dot'+(r?' bs':'')+'" cx="'+X(f)+'" cy="'+Y(i)+'" r="8.5"/><text class="fn" x="'+X(f)+'" y="'+(Y(i)+3.5)+'" text-anchor="middle" font-size="8">'+esc(nm(pc))+'</text>';
+    const r=pc===rootPc; s+='<circle class="dot'+(r?' bs':'')+'" data-m="'+(TUNING[i]+f)+'" cx="'+X(f)+'" cy="'+Y(i)+'" r="8.5"/><text class="fn" x="'+X(f)+'" y="'+(Y(i)+3.5)+'" text-anchor="middle" font-size="8">'+esc(nm(pc))+'</text>';
   }
   return s+'</svg>';
 }
@@ -2636,10 +2694,10 @@ document.addEventListener('change',e=>{
 
 /* ---------- afinador ---------- */
 const GSTR=[[40,'6.ª','Mi'],[45,'5.ª','La'],[50,'4.ª','Re'],[55,'3.ª','Sol'],[59,'2.ª','Si'],[64,'1.ª','Mi']];
-const tun={on:false,stream:null,src:null,an:null,timer:null,hist:[],mode:'guitarra',buf:null};
+const tun={on:false,stream:null,src:null,an:null,timer:null,hist:[],mode:'guitarra',buf:null,forced:null};
 function tunStrings(){ $('tstrings').innerHTML=GSTR.map(([m,n,l],k)=>'<button class="tstr" type="button" data-ref="'+m+'"><b>'+esc(nm(m%12))+'</b><span>'+n+' · '+l+'</span></button>').join(''); }
 function yin(x,sr){
-  const n=x.length; let rms=0; for(let i=0;i<n;i++) rms+=x[i]*x[i]; rms=Math.sqrt(rms/n); if(rms<0.006) return {f:-1,rms,c:1};
+  const n=x.length; let rms=0; for(let i=0;i<n;i++) rms+=x[i]*x[i]; rms=Math.sqrt(rms/n); if(rms<0.003) return {f:-1,rms,c:1};
   const minL=Math.floor(sr/1100), maxL=Math.min(Math.ceil(sr/62),Math.floor(n/2)), W=n-maxL;
   const d=new Float32Array(maxL+2);
   for(let tau=1;tau<=maxL+1;tau++){ let s=0; for(let i=0;i<W;i++){ const v=x[i]-x[i+tau]; s+=v*v; } d[tau]=s; }
@@ -2671,6 +2729,15 @@ function subFix(x,sr,f){
   }
   return best;
 }
+const APP_VER='20261110-1539';
+/* modo guitarra: qué cuerda suena, mirando la serie completa de armónicos de cada cuerda */
+const GSTR_F=[40,45,50,55,59,64].map(m=>440*Math.pow(2,(m-69)/12));
+function gtrPick(x,sr,a4){
+  const scale=(a4||440)/440; let best=-1,bs=-1; const sc=[];
+  GSTR_F.forEach((F0,i)=>{ const F=F0*scale; let s=0; for(let h=1;h<=8;h++){ const fh=h*F; if(fh>sr/2-200) break; s+=Math.max(gMag(x,sr,fh*0.985),gMag(x,sr,fh),gMag(x,sr,fh*1.015)); } sc.push(s); if(s>bs){ bs=s; best=i; } });
+  return {i:best,score:sc};
+}
+function toString(f,F){ const r=f/F; return r>=0.75?f/Math.max(1,Math.round(r)):f*Math.max(1,Math.round(1/r)); }
 /* modo guitarra: si la lectura cae una octava arriba de una cuerda (y no cerca de otra), es esa cuerda */
 function octFix(f){ const m=69+12*Math.log2(f/tA4); if(GSTR.some(g=>Math.abs(m-g[0])<=1.2)) return f; for(const g of GSTR) if(Math.abs(m-12-g[0])<=0.6) return f/2; return f; }
 /* esfera del afinador: cents → ángulo (±10 cents ocupan ±50°, de 10 a 50 llegan a ±78°) */
@@ -2696,8 +2763,9 @@ function tunGauge(){
   $('ta4').innerHTML=[430,432,435,438,439,440,441,442,443,444,445,446].map(v=>'<option'+(v===tA4?' selected':'')+'>'+v+'</option>').join('');
 }
 tunGauge();
+$('tver').textContent='Acordia · versión '+APP_VER; $('appver').textContent='Versión '+APP_VER+'.';
 $('ta4').onchange=()=>{ tA4=+$('ta4').value; store.set('atril.a4',tA4); tDisp=null; };
-function tunShow(f){
+function tunShow(f,si){
   const box=$('tunread'), leds=$('tgauge').querySelectorAll('.led');
   const paint=(col,k)=>{ leds.forEach((l,i)=>{ const d=k==null?99:Math.abs(i-k); l.style.stroke=d===0?col:d===1?col:'#283143'; l.style.opacity=d===0?1:d===1?.35:1; if(d===0) l.setAttribute('filter','url(#tglow)'); else l.removeAttribute('filter'); }); };
   if(f<=0){
@@ -2708,7 +2776,7 @@ function tunShow(f){
   }
   const midi=69+12*Math.log2(f/tA4);
   let target=Math.round(midi), label='';
-  if(tun.mode==='guitarra'){ let bk=0; GSTR.forEach((s,k)=>{ if(Math.abs(midi-s[0])<Math.abs(midi-GSTR[bk][0])) bk=k; }); if(Math.abs(midi-GSTR[bk][0])<4){ target=GSTR[bk][0]; label='Cuerda '+GSTR[bk][1]+' · '+GSTR[bk][2]; }
+  if(tun.mode==='guitarra'){ let bk=0; if(si!=null) bk=si; else GSTR.forEach((s,k)=>{ if(Math.abs(midi-s[0])<Math.abs(midi-GSTR[bk][0])) bk=k; }); if(si!=null||Math.abs(midi-GSTR[bk][0])<4){ target=GSTR[bk][0]; label='Cuerda '+GSTR[bk][1]+' · '+GSTR[bk][2]+(tun.forced!=null?' (fija)':''); }
     document.querySelectorAll('.tstr').forEach(b=>b.classList.toggle('on',+b.dataset.ref===target)); }
   const raw=100*(midi-target);
   tDisp=(tDisp==null||tTarget!==target)?raw:tDisp*0.7+raw*0.3; tTarget=target;
@@ -2727,24 +2795,28 @@ function tunShow(f){
 function tunLoop(){
   if(!tun.on) return;
   tun.an.getFloatTimeDomainData(tun.buf);
-  const r=yin(tun.buf,ctx.sampleRate);
+  const sr=ctx.sampleRate, r=yin(tun.buf,sr);
   /* al pulsar, la cuerda suena alta un instante: se ignoran esas primeras lecturas */
-  if(tun.prevRms>0&&r.rms>tun.prevRms*1.8&&r.rms>0.02){ tun.skip=2; tun.hist=[]; }
-  tun.prevRms=r.rms;
+  if(tun.prevRms>0&&r.rms>tun.prevRms*1.8&&r.rms>0.02){ tun.skip=2; tun.hist=[]; tun.peak=0; }
+  tun.prevRms=r.rms; tun.peak=Math.max(tun.peak||0,r.rms);
   if(tun.skip>0){ tun.skip--; return; }
-  if(r.f>0&&r.c<0.2){
-    let f=subFix(tun.buf,ctx.sampleRate,r.f);
-    if(tun.mode==='guitarra') f=octFix(f);
+  /* cuando la cuerda ya casi no suena, la lectura es poco fiable: se deja la última buena */
+  if(r.f>0&&r.c<0.18&&r.rms>0.08*(tun.peak||0)){
+    let f, key, si=null;
+    if(tun.mode==='guitarra'){
+      /* qué cuerda es: por toda su serie de armónicos (así la 6.ª no se confunde con Si), o la que fijó la persona */
+      si=tun.forced!=null?tun.forced:gtrPick(tun.buf,sr,tA4).i;
+      f=toString(r.f,GSTR_F[si]*tA4/440); key='s'+si;
+    } else { f=subFix(tun.buf,sr,r.f); key='n'+Math.round(69+12*Math.log2(f/tA4)); }
     /* no cambia de nota por una lectura suelta: hacen falta 3 seguidas */
-    const nt=Math.round(69+12*Math.log2(f/tA4));
-    if(tun.lock!==nt){
-      if(tun.cand===nt) tun.candN++; else { tun.cand=nt; tun.candN=1; }
-      if(tun.lock!=null&&tun.candN<3){ tun.quiet=0; return; }
-      tun.lock=nt; tun.hist=[];
+    if(tun.lock!==key){
+      if(tun.cand===key) tun.candN++; else { tun.cand=key; tun.candN=1; }
+      if(tun.lock!=null&&tun.candN<3) return;
+      tun.lock=key; tun.hist=[];
     }
     tun.hist.push(f); if(tun.hist.length>7) tun.hist.shift();
-    const srt=tun.hist.slice().sort((x,y)=>x-y); tunShow(srt[Math.floor(srt.length/2)]); tun.quiet=0;
-  } else if(++tun.quiet>15){ tun.hist=[]; tun.lock=null; tunShow(-1); }
+    const srt=tun.hist.slice().sort((x,y)=>x-y); tunShow(srt[Math.floor(srt.length/2)],si); tun.quiet=0; $('tunread').classList.remove('hold');
+  } else if(++tun.quiet===20&&tun.lock!=null){ $('tunread').classList.add('hold'); }
 }
 async function tunStart(){
   ac();
@@ -2762,7 +2834,7 @@ function tunStop(){
   tun.on=false; clearInterval(tun.timer); tun.timer=null;
   try{ tun.stream&&tun.stream.getTracks().forEach(t=>t.stop()); }catch(e){} tun.stream=null;
   try{ tun.src&&tun.src.disconnect(); }catch(e){}
-  $('tunbtn').textContent='🎤 Encender afinador'; $('tunread').hidden=true; document.querySelectorAll('.tstr.on').forEach(b=>b.classList.remove('on'));
+  $('tunbtn').textContent='🎤 Encender afinador'; $('tunread').hidden=true; document.querySelectorAll('.tstr.on,.tstr.lock').forEach(b=>b.classList.remove('on','lock')); tun.forced=null;
 }
 function tunFail(kind){
   const inClaude=!!window.claude||window.self!==window.top;
@@ -2784,8 +2856,10 @@ function placeTuner(){
   const visible=inC||!$('tab-afinador').hidden;
   if(!visible&&tun.on) tunStop();
 }
-$('tunmode').addEventListener('click',e=>{ const b=e.target.closest('[data-tmode]'); if(!b) return; tun.mode=b.dataset.tmode; $('tunmode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); $('tstrings').hidden=tun.mode!=='guitarra'; tun.hist=[]; });
-$('tstrings').addEventListener('click',e=>{ const b=e.target.closest('[data-ref]'); if(!b) return; if(toggleOff('r'+b.dataset.ref)) return; ac(); silence(0.06); const t=ctx.currentTime+0.03; gnote(+b.dataset.ref,t,4,0.32); markSound('r'+b.dataset.ref,4.5); });
+$('tunmode').addEventListener('click',e=>{ const b=e.target.closest('[data-tmode]'); if(!b) return; tun.mode=b.dataset.tmode; tun.forced=null; document.querySelectorAll('.tstr.lock').forEach(x=>x.classList.remove('lock')); $('tunmode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); $('tstrings').hidden=tun.mode!=='guitarra'; tun.hist=[]; });
+$('tstrings').addEventListener('click',e=>{ const b=e.target.closest('[data-ref]'); if(!b) return;
+  if(tun.on&&tun.mode==='guitarra'){ const i=GSTR.findIndex(g=>g[0]===+b.dataset.ref); tun.forced=tun.forced===i?null:i; tun.lock=null; tun.hist=[]; document.querySelectorAll('.tstr').forEach(x=>x.classList.toggle('lock',tun.forced!=null&&+x.dataset.ref===GSTR[tun.forced][0])); toast(tun.forced==null?'El afinador vuelve a detectar la cuerda solo.':'Afinando solo la cuerda '+GSTR[i][1]+' ('+GSTR[i][2]+'). Toca el botón otra vez para que la detecte sola.'); return; }
+  if(toggleOff('r'+b.dataset.ref)) return; ac(); silence(0.06); const t=ctx.currentTime+0.03; gnote(+b.dataset.ref,t,4,0.32); markSound('r'+b.dataset.ref,4.5); });
 
 /* ---------- enviar por enlace, copia de Mis canciones ---------- */
 const PUBLIC_URL='https://mesolano77.github.io/Acordia/';
@@ -2922,6 +2996,14 @@ $('copyatajo').onclick=()=>{
   try{ navigator.clipboard.writeText(ATAJO_JS).then(()=>toast('Código copiado. Ahora ve a la app Atajos.'),fallback); }catch(e){ fallback(); }
 };
 
+/* tocar las teclas del piano o los puntos de la guitarra hace sonar esa nota */
+document.addEventListener('pointerdown',e=>{
+  const k=e.target.closest('.kb [data-m], #piano [data-m], .gsvg [data-m]'); if(!k||e.button>0) return;
+  if(k.closest('.gtrbox')&&drag) return;
+  const m=+k.dataset.m; if(!(m>0)) return; ac();
+  const t=ctx.currentTime+0.01; if(k.closest('.gsvg')) gnote(m,t,3,0.3); else if(inst==='guitarra'){ const was=inst; inst='piano'; try{ note(m,t,2.5,0.3); } finally{ inst=was; } } else note(m,t,2.5,0.3);
+  k.classList.add('press'); setTimeout(()=>k.classList.remove('press'),220);
+});
 /* ---------- pestañas ---------- */
 const TABS=['cancion','duracion','tono','como','afinador'];
 function tabFromHash(){ const h=location.hash.slice(1); return h==='acordes'?'duracion':(TABS.includes(h)?h:'cancion'); }
