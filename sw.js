@@ -1,5 +1,5 @@
 /* Acordia — service worker (generado por tools/build_web.py; no editar en web/) */
-const VERSION = '5d60ece43f42';
+const VERSION = 'd1169d8ce55d';
 const CACHE = 'acordia-' + VERSION;
 const FONTS = 'acordia-fuentes';
 const SHELL = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "favicon-32.png", "lib/jspdf.umd.min.js", "lib/tesseract.min.js", "piano/A2.mp3", "piano/A3.mp3", "piano/A4.mp3", "piano/A5.mp3", "piano/C2.mp3", "piano/C3.mp3", "piano/C4.mp3", "piano/C5.mp3", "piano/C6.mp3", "piano/Ds2.mp3", "piano/Ds3.mp3", "piano/Ds4.mp3", "piano/Ds5.mp3", "piano/Fs2.mp3", "piano/Fs3.mp3", "piano/Fs4.mp3", "piano/Fs5.mp3"];
