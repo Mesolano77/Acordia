@@ -118,7 +118,7 @@ header.top p{margin:2px 0 0; color:var(--muted)}
 .tgauge .lbl{fill:#7F899C; font:600 9.5px var(--f-mono); letter-spacing:-.04em}
 .tgauge .lbl.z{fill:#3DDC84; font-size:12px}
 .tgauge .acc{fill:#7F899C; font:700 15px var(--f-display)}
-.tgauge .needle{transform-box:view-box; transform-origin:180px 180px; transition:transform .15s ease-out}
+.tgauge .needle{transform-box:view-box; transform-origin:180px 180px; transition:transform .3s ease-out}
 .tgauge .arrow{fill:#2A3244; transition:fill .15s}
 .tfreq{font:500 .78rem var(--f-mono); color:#8D97AA}
 .tmsg{font-weight:700; text-align:center; color:var(--tc); min-height:1.3em}
@@ -2639,20 +2639,40 @@ const GSTR=[[40,'6.ª','Mi'],[45,'5.ª','La'],[50,'4.ª','Re'],[55,'3.ª','Sol']
 const tun={on:false,stream:null,src:null,an:null,timer:null,hist:[],mode:'guitarra',buf:null};
 function tunStrings(){ $('tstrings').innerHTML=GSTR.map(([m,n,l],k)=>'<button class="tstr" type="button" data-ref="'+m+'"><b>'+esc(nm(m%12))+'</b><span>'+n+' · '+l+'</span></button>').join(''); }
 function yin(x,sr){
-  const n=x.length; let rms=0; for(let i=0;i<n;i++) rms+=x[i]*x[i]; rms=Math.sqrt(rms/n); if(rms<0.006) return {f:-1,rms};
+  const n=x.length; let rms=0; for(let i=0;i<n;i++) rms+=x[i]*x[i]; rms=Math.sqrt(rms/n); if(rms<0.006) return {f:-1,rms,c:1};
   const minL=Math.floor(sr/1100), maxL=Math.min(Math.ceil(sr/62),Math.floor(n/2)), W=n-maxL;
-  const d=new Float32Array(maxL+1);
-  for(let tau=1;tau<=maxL;tau++){ let s=0; for(let i=0;i<W;i++){ const v=x[i]-x[i+tau]; s+=v*v; } d[tau]=s; }
-  let run=0, best=-1, bestV=1e9; const c=new Float32Array(maxL+1); c[0]=1;
-  for(let tau=1;tau<=maxL;tau++){ run+=d[tau]; c[tau]=run>0?d[tau]*tau/run:1; }
+  const d=new Float32Array(maxL+2);
+  for(let tau=1;tau<=maxL+1;tau++){ let s=0; for(let i=0;i<W;i++){ const v=x[i]-x[i+tau]; s+=v*v; } d[tau]=s; }
+  let run=0; const c=new Float32Array(maxL+2); c[0]=1;
+  for(let tau=1;tau<=maxL+1;tau++){ run+=d[tau]; c[tau]=run>0?d[tau]*tau/run:1; }
+  const locMin=t=>{ while(t+1<=maxL&&c[t+1]<c[t]) t++; while(t-1>=minL&&c[t-1]<c[t]) t--; return t; };
+  let best=-1, gMin=1e9, gAt=-1;
   for(let tau=minL;tau<=maxL;tau++){
-    if(c[tau]<0.15){ while(tau+1<=maxL&&c[tau+1]<c[tau]) tau++; best=tau; break; }
-    if(c[tau]<bestV){ bestV=c[tau]; }
+    if(c[tau]<gMin){ gMin=c[tau]; gAt=tau; }
+    if(best<0&&c[tau]<0.15){ best=locMin(tau); break; }
   }
-  if(best<0){ if(bestV>0.35) return {f:-1,rms}; for(let tau=minL;tau<=maxL;tau++) if(c[tau]===bestV){ best=tau; break; } }
+  if(best<0){ if(gMin>0.3) return {f:-1,rms,c:gMin}; best=gAt; }
+  /* el armónico engaña: si el sonido se repite mucho mejor cada 2, 3 o 4 periodos, la nota real es más grave
+     (la 6.ª cuerda suele leerse como Si, su 3.er armónico) */
+  let cb=c[best];
+  if(cb>0.015){ for(let k=2;k<=4;k++){ const t0=Math.round(best*k); if(t0+3>maxL) break; let t=t0; for(let j=t0-3;j<=t0+3;j++) if(c[j]<c[t]) t=j; t=locMin(t); if(Math.abs(t-t0)<=Math.max(3,t0*0.03)&&c[t]<cb*0.55){ best=t; cb=c[t]; } } }
   let t=best; if(best>1&&best<maxL){ const a=c[best-1],b=c[best],g=c[best+1],den=a+g-2*b; if(den) t=best+0.5*(a-g)/den; }
-  return {f:sr/t,rms};
+  return {f:sr/t,rms,c:cb};
 }
+/* comprueba en el espectro si la nota real es una octava (÷2) o una octava y quinta (÷3) más grave */
+function gMag(x,sr,f){ const n=x.length, w=2*Math.PI*f/sr, cw=2*Math.cos(w); let s1=0,s2=0; for(let i=0;i<n;i++){ const h=0.5-0.5*Math.cos(2*Math.PI*i/(n-1)); const s0=x[i]*h+cw*s1-s2; s2=s1; s1=s0; } return Math.sqrt(Math.max(0,s1*s1+s2*s2-cw*s1*s2)); }
+function subFix(x,sr,f){
+  const base=gMag(x,sr,f); if(!(base>0)) return f;
+  let best=f;
+  for(const k of [3,2]){
+    const g=f/k; if(g<62) continue;
+    let ev=0,ctl=0,cnt=0; for(let m=1;m<=2*k;m++){ if(m%k===0) continue; ev+=gMag(x,sr,g*m); ctl+=gMag(x,sr,g*(m+0.5)); cnt++; }
+    if(ev>2.5*ctl&&ev/cnt>0.06*base){ best=g; break; }
+  }
+  return best;
+}
+/* modo guitarra: si la lectura cae una octava arriba de una cuerda (y no cerca de otra), es esa cuerda */
+function octFix(f){ const m=69+12*Math.log2(f/tA4); if(GSTR.some(g=>Math.abs(m-g[0])<=1.2)) return f; for(const g of GSTR) if(Math.abs(m-12-g[0])<=0.6) return f/2; return f; }
 /* esfera del afinador: cents → ángulo (±10 cents ocupan ±50°, de 10 a 50 llegan a ±78°) */
 const TLEDS=[-50,-40,-30,-25,-20,-15,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,15,20,25,30,40,50];
 let tA4=store.get('atril.a4',440), tDisp=null, tTarget=null;
@@ -2691,7 +2711,7 @@ function tunShow(f){
   if(tun.mode==='guitarra'){ let bk=0; GSTR.forEach((s,k)=>{ if(Math.abs(midi-s[0])<Math.abs(midi-GSTR[bk][0])) bk=k; }); if(Math.abs(midi-GSTR[bk][0])<4){ target=GSTR[bk][0]; label='Cuerda '+GSTR[bk][1]+' · '+GSTR[bk][2]; }
     document.querySelectorAll('.tstr').forEach(b=>b.classList.toggle('on',+b.dataset.ref===target)); }
   const raw=100*(midi-target);
-  tDisp=(tDisp==null||tTarget!==target)?raw:tDisp*0.55+raw*0.45; tTarget=target;
+  tDisp=(tDisp==null||tTarget!==target)?raw:tDisp*0.7+raw*0.3; tTarget=target;
   const c=tDisp, ac=Math.abs(c), ok=ac<=2, col=ok?'#3DDC84':ac<=10?'#F5B83D':'#FF5A5F';
   box.classList.remove('idle'); box.classList.toggle('ok',ok); box.style.setProperty('--tc',col);
   $('tnote').textContent=nm(((target%12)+12)%12); $('toct').textContent=String(Math.floor(target/12)-1);
@@ -2708,8 +2728,23 @@ function tunLoop(){
   if(!tun.on) return;
   tun.an.getFloatTimeDomainData(tun.buf);
   const r=yin(tun.buf,ctx.sampleRate);
-  if(r.f>0){ tun.hist.push(r.f); if(tun.hist.length>5) tun.hist.shift(); const s=tun.hist.slice().sort((a,b)=>a-b); tunShow(s[Math.floor(s.length/2)]); tun.quiet=0; }
-  else if(++tun.quiet>12){ tun.hist=[]; tunShow(-1); }
+  /* al pulsar, la cuerda suena alta un instante: se ignoran esas primeras lecturas */
+  if(tun.prevRms>0&&r.rms>tun.prevRms*1.8&&r.rms>0.02){ tun.skip=2; tun.hist=[]; }
+  tun.prevRms=r.rms;
+  if(tun.skip>0){ tun.skip--; return; }
+  if(r.f>0&&r.c<0.2){
+    let f=subFix(tun.buf,ctx.sampleRate,r.f);
+    if(tun.mode==='guitarra') f=octFix(f);
+    /* no cambia de nota por una lectura suelta: hacen falta 3 seguidas */
+    const nt=Math.round(69+12*Math.log2(f/tA4));
+    if(tun.lock!==nt){
+      if(tun.cand===nt) tun.candN++; else { tun.cand=nt; tun.candN=1; }
+      if(tun.lock!=null&&tun.candN<3){ tun.quiet=0; return; }
+      tun.lock=nt; tun.hist=[];
+    }
+    tun.hist.push(f); if(tun.hist.length>7) tun.hist.shift();
+    const srt=tun.hist.slice().sort((x,y)=>x-y); tunShow(srt[Math.floor(srt.length/2)]); tun.quiet=0;
+  } else if(++tun.quiet>15){ tun.hist=[]; tun.lock=null; tunShow(-1); }
 }
 async function tunStart(){
   ac();
@@ -2719,7 +2754,7 @@ async function tunStart(){
     tun.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
   }catch(err){ $('tunbtn').disabled=false; $('tunbtn').textContent='🎤 Encender afinador'; tunFail(err&&err.name); return; }
   tun.src=ctx.createMediaStreamSource(tun.stream); tun.an=ctx.createAnalyser(); tun.an.fftSize=4096; tun.src.connect(tun.an);
-  tun.buf=new Float32Array(tun.an.fftSize); tun.on=true; tun.hist=[]; tun.quiet=0;
+  tun.buf=new Float32Array(tun.an.fftSize); tun.on=true; tun.hist=[]; tun.quiet=0; tun.lock=null; tun.cand=null; tun.prevRms=0; tun.skip=0;
   $('tunbtn').disabled=false; $('tunbtn').textContent='■ Apagar afinador'; $('tunerr').hidden=true; $('tunclaude').hidden=true; $('tunread').hidden=false;
   tunShow(-1); clearInterval(tun.timer); tun.timer=setInterval(tunLoop,60);
 }
