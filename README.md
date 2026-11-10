@@ -4,7 +4,7 @@ App para ensayar las canciones del coro: se trae la letra con acordes
 (pegando texto o leyendo fotos), se cambia al tono del coro, se ajusta cuánto
 dura cada acorde, se toca con piano para cantar encima y se exporta como foto o PDF.
 
-**Abrir:** https://mesolano77.github.io/atril-ensayo/
+**Abrir:** https://mesolano77.github.io/acordia/
 
 ## Instalar en el iPhone
 
