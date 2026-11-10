@@ -248,6 +248,7 @@ pre#chart .w.pick{background:var(--felt); color:var(--on-ink)}
 .lib .lt span{font-size:.78rem; color:var(--muted)}
 .lib .la{display:flex; gap:4px}
 .lib .la .btn{padding:4px 8px}
+.bignew{width:100%; font-size:1.05rem; padding:12px 16px; font-weight:700}
 .sharebox{display:flex; flex-direction:column; gap:6px; border:1px dashed var(--felt); border-radius:8px; padding:8px}
 .sharebox input{width:100%; font-size:.8rem}
 .recv{position:fixed; left:12px; right:12px; bottom:12px; z-index:60; max-width:520px; margin:0 auto; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.25); padding:14px; display:flex; flex-direction:column; gap:10px}
@@ -363,6 +364,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
         <div class="label" id="l-lib">Mis canciones</div>
         <span class="sub" id="libcount"></span>
       </div>
+      <button class="btn primary bignew" id="libnew" type="button">＋ Nueva canción</button>
       <div class="sub">Se guardan en este dispositivo, con tus cambios (acordes, tono y duración). Toca una para abrirla.</div>
       <input type="text" id="libq" placeholder="Buscar en mis canciones" autocomplete="off" hidden>
       <ul class="lib" id="lib"></ul>
@@ -1470,7 +1472,7 @@ function saveSong(){
 }
 $('save').onclick=saveSong; $('saveTop').onclick=saveSong; $('libsave').onclick=saveSong;
 function newSong(ev){ const btn=ev&&ev.currentTarget; if(btn&&!confirmDiscard(btn,'Nueva canción')) return; stop(); Object.assign(state,{title:'',text:'',shift:0,timing:null,rhythm:null,libId:null}); selBar=null; undoStack=[]; $('undo').disabled=true; load(); renderSaved(); $('ed').open=true; $('ed').scrollIntoView({block:'start'}); setTimeout(()=>{ try{$('title').focus({preventScroll:true})}catch(e){} },300); }
-$('new').onclick=newSong; $('new2').onclick=newSong;
+$('new').onclick=newSong; $('new2').onclick=newSong; $('libnew').onclick=newSong;
 $('photos2').onclick=()=>{ $('ed').open=true; $('photobox').scrollIntoView({block:'start'}); };
 $('next2').onclick=()=>{ $('ed').open=true; $('joinbox').scrollIntoView({block:'start'}); setTimeout(()=>{ try{$('next').focus({preventScroll:true})}catch(e){} },300); };
 const normL=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9#]/g,'');
@@ -2729,7 +2731,7 @@ function subFix(x,sr,f){
   }
   return best;
 }
-const APP_VER='20261110-1539';
+const APP_VER='20261110-1550';
 /* modo guitarra: qué cuerda suena, mirando la serie completa de armónicos de cada cuerda */
 const GSTR_F=[40,45,50,55,59,64].map(m=>440*Math.pow(2,(m-69)/12));
 function gtrPick(x,sr,a4){
