@@ -116,7 +116,7 @@ body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-in
 @media (max-width:860px){
   .grid{display:flex; flex-direction:column}
   .colL,.colR{display:contents}
-  .o-tono{order:1} .o-add{order:2} .o-sheet{order:3} .o-ensayo{order:4} .o-teclado{order:5} .o-ayuda{order:6}
+  .o-tono{order:1} .o-lib{order:2} .o-add{order:3} .o-sheet{order:4} .o-ensayo{order:5} .o-teclado{order:6} .o-ayuda{order:7}
 }
 .block{display:flex; flex-direction:column; gap:10px; min-width:0}
 .label{font-family:var(--f-display); font-size:.72rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
@@ -173,6 +173,18 @@ pre#chart .w.pick{background:var(--felt); color:var(--on-ink)}
 .cpop form{display:flex; gap:6px}
 .cpop input{flex:1 1 auto; min-width:0; font:600 1rem var(--f-mono)}
 .cpop .del{color:#B42318; border-color:#F2B8B5}
+.lib{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; max-height:360px; overflow:auto}
+.lib:empty::before{content:"Todavía no hay canciones guardadas. Edita una y toca Guardar."; color:var(--muted); font-size:.88rem}
+.lib li{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:6px 8px}
+.lib li.cur{border-color:var(--felt); box-shadow:0 0 0 1px var(--felt)}
+.lib .lt{background:none; border:0; text-align:left; padding:2px; min-width:0; cursor:pointer; color:var(--ink)}
+.lib .lt b{display:block; overflow-wrap:anywhere}
+.lib .lt span{font-size:.78rem; color:var(--muted)}
+.lib .la{display:flex; gap:4px}
+.lib .la .btn{padding:4px 8px}
+.savestat{font-size:.8rem; color:var(--muted); align-self:center}
+.savestat.dirty{color:#B54708; font-weight:600}
+@media (max-width:860px){ .o-lib{order:2} }
 .draghint{padding:10px 18px 0; font-size:.85rem}
 .ch.on{background:var(--felt); color:var(--on-ink)}
 .empty{color:var(--muted); font-family:var(--f-body); white-space:normal}
@@ -275,6 +287,16 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
         </div>
       </div>
     </section>
+    <section class="block card o-lib" aria-labelledby="l-lib">
+      <div class="row" style="justify-content:space-between">
+        <div class="label" id="l-lib">Mis canciones</div>
+        <span class="sub" id="libcount"></span>
+      </div>
+      <div class="sub">Se guardan en este dispositivo, con tus cambios (acordes, tono y duración). Toca una para abrirla.</div>
+      <input type="text" id="libq" placeholder="Buscar en mis canciones" autocomplete="off" hidden>
+      <ul class="lib" id="lib"></ul>
+      <button class="btn primary" id="libsave">Guardar la canción actual</button>
+    </section>
     <section class="block card o-ensayo" aria-labelledby="l-ens">
       <div class="label" id="l-ens">Ensayo</div>
       <div class="row">
@@ -356,7 +378,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
           <label class="sub" for="src">Letra con acordes (pega aquí el chart completo)</label>
           <textarea id="src" spellcheck="false"></textarea>
           <div class="row">
-            <button class="btn primary" id="save">Guardar en este dispositivo</button>
+            <button class="btn primary" id="save">Guardar en Mis canciones</button>
             <button class="btn" id="new">Nueva</button>
           </div>
           <div class="joinbox" id="joinbox">
@@ -370,14 +392,15 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
           </div>
         </div>
       </div>
-      <ul class="saved" id="saved"></ul>
     </div>
   </details>
   <main class="sheet o-sheet">
     <div class="sheet-bar">
       <div class="sheet-title" id="stitle">Canción</div>
       <div class="row">
-        <button class="btn primary" id="new2">+ Nueva canción</button>
+        <button class="btn primary" id="saveTop">Guardar</button>
+        <span class="savestat" id="savestat"></span>
+        <button class="btn" id="new2">+ Nueva canción</button>
         <button class="btn" id="photos2">+ Desde fotos</button>
         <button class="btn" id="next2">+ Siguiente foto</button>
         <button class="btn" id="smaller" aria-label="Letra más pequeña">A−</button>
@@ -1066,7 +1089,7 @@ $('usetiming').addEventListener('change',()=>renderBars());
 $('tapcancel').onclick=()=>{ taps=null; $('tapbox').hidden=true; $('tapstart').disabled=false; toast('Marcado cancelado.'); };
 
 /* ---------- events ---------- */
-function persist(){ store.set('atril.draft',{title:state.title,text:state.text,shift:state.shift,nota:state.nota,size:state.size,timing:state.timing||null,rhythm:state.rhythm||null,meter:state.meter||4}); }
+function persist(){ store.set('atril.draft',{title:state.title,text:state.text,shift:state.shift,nota:state.nota,size:state.size,timing:state.timing||null,rhythm:state.rhythm||null,meter:state.meter||4,libId:state.libId||null}); if(typeof updateSaveState==='function') updateSaveState(); }
 function setShift(s){ state.shift=norm(s); prevVoice=null; render(); persist(); }
 $('up').onclick=()=>setShift(state.shift+1);
 $('down').onclick=()=>setShift(state.shift-1);
@@ -1162,29 +1185,62 @@ let deb=null;
 $('src').oninput=e=>{ clearTimeout(deb); deb=setTimeout(()=>{ state.text=e.target.value; selIndex=0; parse(); render(); persist(); },250); };
 $('title').oninput=e=>{ state.title=e.target.value; $('stitle').textContent=state.title||'Canción sin título'; persist(); };
 
-function songs(){ return store.get('atril.songs',[]); }
-function renderSaved(){
-  const list=songs(); const ul=$('saved');
-  ul.innerHTML=list.map((s,i)=>'<li><span>'+esc(s.title||'Sin título')+' <span class="sub">· '+esc(s.keyName||'')+'</span></span><span class="acts"><button class="btn" data-open="'+i+'">Abrir</button><button class="btn" data-del="'+i+'">Borrar</button></span></li>').join('');
+function songs(){
+  const l=store.get('atril.songs',[]); let ch=false;
+  l.forEach((x,k)=>{ if(!x.id){ x.id='s'+Date.now().toString(36)+k; ch=true; } });
+  if(ch) store.set('atril.songs',l); return l;
 }
-$('saved').addEventListener('click',e=>{
-  const o=e.target.closest('[data-open]'), d=e.target.closest('[data-del]');
+function snap(){ return JSON.stringify([state.title||'',state.text,state.shift||0,state.rhythm||null,state.timing||null,state.meter||4]); }
+function snapOf(x){ return JSON.stringify([x.title||'',x.text,x.shift||0,x.rhythm||null,x.timing||null,x.meter||4]); }
+function isDirty(){ if(!state.text.trim()) return false; const e=state.libId&&songs().find(x=>x.id===state.libId); return !e||snapOf(e)!==snap(); }
+function updateSaveState(){
+  const st=$('savestat'); if(!st) return;
+  const e=state.libId&&songs().find(x=>x.id===state.libId);
+  if(!state.text.trim()){ st.textContent=''; st.className='savestat'; return; }
+  if(isDirty()){ st.textContent=e?'● Cambios sin guardar':'● Sin guardar'; st.className='savestat dirty'; }
+  else { st.textContent='✓ Guardada'; st.className='savestat'; }
+}
+function fmtDate(t){ try{ return new Date(t).toLocaleDateString('es-CR',{day:'numeric',month:'short'}); }catch(e){ return ''; } }
+function renderSaved(){
+  const list=songs(), q=($('libq').value||'').trim().toLowerCase();
+  $('libq').hidden=list.length<6; $('libcount').textContent=list.length?list.length+' guardada'+(list.length>1?'s':''):'';
+  $('lib').innerHTML=list.map((x,k)=>({x,k})).filter(({x})=>!q||(x.title||'').toLowerCase().includes(q)).map(({x,k})=>
+    '<li class="'+(x.id===state.libId?'cur':'')+'"><button class="lt" data-open="'+x.id+'"><b>'+esc(x.title||'Sin título')+'</b><span>'+esc(x.keyName||'')+(x.updated?' · '+esc(fmtDate(x.updated)):'')+(x.id===state.libId?' · abierta':'')+'</span></button>'+
+    '<span class="la"><button class="btn" data-mv="-1" data-id="'+x.id+'" aria-label="Subir"'+(k===0?' disabled':'')+'>↑</button><button class="btn" data-mv="1" data-id="'+x.id+'" aria-label="Bajar"'+(k===list.length-1?' disabled':'')+'>↓</button><button class="btn" data-del="'+x.id+'">Borrar</button></span></li>').join('');
+  updateSaveState();
+}
+function confirmDiscard(btn,label){
+  if(!isDirty()||btn.dataset.ok) { if(btn) delete btn.dataset.ok; return true; }
+  btn.dataset.ok='1'; toast('Tienes cambios sin guardar en «'+(state.title||'esta canción')+'». Toca '+label+' otra vez para descartarlos, o toca Guardar primero.');
+  setTimeout(()=>{ if(btn) delete btn.dataset.ok; },4000); return false;
+}
+$('lib').addEventListener('click',e=>{
+  const o=e.target.closest('[data-open]'), m=e.target.closest('[data-mv]'), d=e.target.closest('[data-del]');
   const list=songs();
-  if(o){ const s=list[+o.dataset.open]; stop(); Object.assign(state,{title:s.title,text:s.text,shift:s.shift||0,timing:s.timing||null,rhythm:s.rhythm||null,meter:s.meter||4}); load(); toast('Abierta: '+s.title); }
-  if(d){
-    if(d.dataset.confirm){ list.splice(+d.dataset.del,1); store.set('atril.songs',list); renderSaved(); toast('Canción borrada.'); }
-    else { d.dataset.confirm='1'; d.textContent='¿Seguro?'; setTimeout(()=>{ if(d.isConnected){ delete d.dataset.confirm; d.textContent='Borrar'; } },3000); }
-  }
+  if(o){ const x=list.find(y=>y.id===o.dataset.open); if(!x) return; if(x.id===state.libId&&!isDirty()){ toast('Ya está abierta.'); return; }
+    if(!confirmDiscard(o,'la canción')) return;
+    stop(); Object.assign(state,{title:x.title,text:x.text,shift:x.shift||0,timing:x.timing||null,rhythm:x.rhythm||null,meter:x.meter||4,libId:x.id}); undoStack=[]; $('undo').disabled=true; load(); renderSaved(); toast('Abierta: '+x.title); try{ document.querySelector('.sheet').scrollIntoView({block:'start'}); }catch(err){} }
+  if(m){ const k=list.findIndex(y=>y.id===m.dataset.id), j=k+(+m.dataset.mv); if(k<0||j<0||j>=list.length) return; [list[k],list[j]]=[list[j],list[k]]; store.set('atril.songs',list); renderSaved(); }
+  if(d){ const k=list.findIndex(y=>y.id===d.dataset.del); if(k<0) return;
+    if(d.dataset.confirm){ const gone=list.splice(k,1)[0]; store.set('atril.songs',list); if(gone.id===state.libId) state.libId=null; persist(); renderSaved(); toast('Borrada: '+(gone.title||'canción')+'.'); }
+    else { d.dataset.confirm='1'; d.textContent='¿Seguro?'; setTimeout(()=>{ if(d.isConnected){ delete d.dataset.confirm; d.textContent='Borrar'; } },3000); } }
 });
-$('save').onclick=()=>{
+$('libq').oninput=renderSaved;
+function saveSong(){
+  if(!state.text.trim()){ toast('No hay nada que guardar todavía.'); return; }
   const list=songs(); const T=(parsed.origKey+state.shift+120)%12;
   const keyName=parsed.chords.length?(parsed.minor?nmLong(T+9)+' menor':nmLong(T)+' mayor'):'';
-  const entry={title:state.title||'Sin título',text:state.text,shift:state.shift,keyName,timing:state.timing||null,rhythm:state.rhythm||null,meter:state.meter||4};
-  const i=list.findIndex(s=>s.title===entry.title);
-  if(i>=0) list[i]=entry; else list.unshift(entry);
-  store.set('atril.songs',list); renderSaved(); toast('Guardada en '+keyName+'.');
-};
-function newSong(){ stop(); Object.assign(state,{title:'',text:'',shift:0,timing:null,rhythm:null}); selBar=null; load(); $('ed').open=true; $('ed').scrollIntoView({block:'start'}); setTimeout(()=>{ try{$('title').focus({preventScroll:true})}catch(e){} },300); }
+  if(!state.title.trim()){ state.title='Sin título '+(list.length+1); $('title').value=state.title; $('stitle').textContent=state.title; }
+  const entry={id:state.libId||('s'+Date.now().toString(36)),title:state.title,text:state.text,shift:state.shift,keyName,timing:state.timing||null,rhythm:state.rhythm||null,meter:state.meter||4,updated:Date.now()};
+  let k=list.findIndex(x=>x.id===entry.id);
+  if(k<0&&!state.libId) k=list.findIndex(x=>(x.title||'')===entry.title);
+  if(k>=0){ entry.id=list[k].id; list[k]=entry; } else list.push(entry);
+  store.set('atril.songs',list); state.libId=entry.id; persist(); renderSaved();
+  try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+  toast('Guardada en Mis canciones: '+entry.title+' ('+keyName+').');
+}
+$('save').onclick=saveSong; $('saveTop').onclick=saveSong; $('libsave').onclick=saveSong;
+function newSong(ev){ const btn=ev&&ev.currentTarget; if(btn&&!confirmDiscard(btn,'Nueva canción')) return; stop(); Object.assign(state,{title:'',text:'',shift:0,timing:null,rhythm:null,libId:null}); selBar=null; undoStack=[]; $('undo').disabled=true; load(); renderSaved(); $('ed').open=true; $('ed').scrollIntoView({block:'start'}); setTimeout(()=>{ try{$('title').focus({preventScroll:true})}catch(e){} },300); }
 $('new').onclick=newSong; $('new2').onclick=newSong;
 $('photos2').onclick=()=>{ $('ed').open=true; $('photobox').scrollIntoView({block:'start'}); };
 $('next2').onclick=()=>{ $('ed').open=true; $('joinbox').scrollIntoView({block:'start'}); setTimeout(()=>{ try{$('next').focus({preventScroll:true})}catch(e){} },300); };
