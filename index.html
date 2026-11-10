@@ -161,10 +161,13 @@ pre#chart{margin:0; font-family:var(--f-mono); font-size:var(--chart-size); line
 pre#chart .cl{color:var(--chord); font-weight:600}
 .ch{font:inherit; color:var(--chord); background:none; border:0; padding:0; margin:0; border-radius:3px; cursor:pointer}
 .ch:hover{background:var(--felt-soft)}
-pre#chart .cl .ch{touch-action:pan-y; cursor:grab}
+pre#chart .cl .ch{touch-action:pan-y; cursor:grab; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none}
+pre#chart{touch-action:manipulation}
+pre#chart .w{-webkit-touch-callout:none}
+pre#chart .lp{background:var(--felt-soft); border-radius:3px}
 .ch.drag{position:relative; z-index:3; cursor:grabbing; background:var(--felt); color:var(--on-ink); box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .ch.drag::after{content:""; position:absolute; left:0; top:100%; height:1.6em; border-left:2px dashed var(--felt)}
-pre#chart .w{cursor:pointer; border-radius:3px}
+pre#chart .w{cursor:default; border-radius:3px}
 pre#chart .w:hover{background:var(--felt-soft)}
 pre#chart .w.pick{background:var(--felt); color:var(--on-ink)}
 .cpop{position:absolute; z-index:30; width:min(340px,calc(100vw - 24px)); background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 32px rgba(0,0,0,.28); padding:12px; display:flex; flex-direction:column; gap:10px}
@@ -182,6 +185,10 @@ pre#chart .w.pick{background:var(--felt); color:var(--on-ink)}
 .lib .lt span{font-size:.78rem; color:var(--muted)}
 .lib .la{display:flex; gap:4px}
 .lib .la .btn{padding:4px 8px}
+.sharebox{display:flex; flex-direction:column; gap:6px; border:1px dashed var(--felt); border-radius:8px; padding:8px}
+.sharebox input{width:100%; font-size:.8rem}
+.recv{position:fixed; left:12px; right:12px; bottom:12px; z-index:60; max-width:520px; margin:0 auto; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.25); padding:14px; display:flex; flex-direction:column; gap:10px}
+.recv h3{margin:0; font-size:1.05rem}
 .savestat{font-size:.8rem; color:var(--muted); align-self:center}
 .savestat.dirty{color:#B54708; font-weight:600}
 @media (max-width:860px){ .o-lib{order:2} }
@@ -296,6 +303,17 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
       <input type="text" id="libq" placeholder="Buscar en mis canciones" autocomplete="off" hidden>
       <ul class="lib" id="lib"></ul>
       <button class="btn primary" id="libsave">Guardar la canción actual</button>
+      <div class="sharebox" id="sharebox" hidden>
+        <div class="sub" id="sharemsg"></div>
+        <input type="text" id="sharelink" readonly>
+        <div class="row"><button class="btn primary" id="sharecopy">Copiar enlace</button><button class="btn" id="shareclose">Cerrar</button></div>
+      </div>
+      <div class="row">
+        <button class="btn" id="libexport">Exportar copia</button>
+        <label class="btn filebtn" for="libimport">Importar copia</label>
+        <input type="file" id="libimport" accept=".json,application/json,text/plain" class="vh">
+      </div>
+      <div class="sub"><b>Enviar</b> manda la canción por enlace (WhatsApp, Mensajes) con tus acordes, tono y duraciones. <b>Exportar copia</b> guarda todas en un archivo para pasarlas a otro dispositivo o como respaldo.</div>
     </section>
     <section class="block card o-ensayo" aria-labelledby="l-ens">
       <div class="label" id="l-ens">Ensayo</div>
@@ -340,7 +358,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
           <li>Selecciona desde el primer acorde hasta el final y copia.</li>
           <li>Pulsa <b>Nueva</b>, escribe el título y pega en el cuadro de la canción. Desde una foto: en el iPhone usa Texto en Vivo, Seleccionar todo y Copiar.</li>
           <li>Si la canción sigue en otra foto, pulsa <b>+ Siguiente foto</b>: verás dónde terminó la anterior. Copia desde ahí, pega y pulsa <b>Unir</b>. Repite con cada foto.</li>
-          <li>Si un acorde quedó corrido, arrástralo con el dedo o el mouse hasta la palabra correcta. Si falta uno, toca la palabra y escríbelo. Si sobra, tócalo y elige Eliminar.</li>
+          <li>Si un acorde quedó corrido, arrástralo con el dedo o el mouse hasta la palabra correcta. Para agregar uno, <b>toca dos veces</b> (o mantén presionada) la palabra y escríbelo. Para cambiarlo o quitarlo, toca dos veces o mantén presionado el acorde. Un toque normal solo lo hace sonar.</li>
           <li>Elige el tono del coro arriba, o súbelo y bájalo de medio tono en medio tono.</li>
           <li>Pulsa <b>Dar el tono</b> antes de cantar y <b>Reproducir</b> para ensayar con los acordes.</li>
         </ol>
@@ -435,6 +453,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
         <button class="btn" id="editmode" aria-pressed="false">Editar</button>
         <button class="btn" id="undo" disabled>Deshacer</button>
         <button class="btn primary" id="exportbtn">Exportar</button>
+        <button class="btn" id="sendcur">Enviar enlace</button>
       </div>
     </div>
     <div class="edithint" id="edithint" hidden>Modo edición: <b>✕</b> borra la línea, <b>✎</b> la corriges a mano y tocar un acorde lo quita. <b>Deshacer</b> revierte el último cambio.</div>
@@ -450,7 +469,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
       <div class="sub" id="exportsum">Elige el formato. La foto sirve para mandarla por WhatsApp; el PDF junta toda la canción en un archivo para imprimir o leer en la tablet.</div>
       <div id="exportlist" class="explist"></div>
     </div>
-    <div class="sub draghint">Consejos: <b>arrastra</b> un acorde para ponerlo sobre la palabra correcta. <b>Toca una palabra</b> para agregarle un acorde encima. <b>Toca un acorde</b> para oírlo, cambiarlo o eliminarlo.</div>
+    <div class="sub draghint">Consejos: <b>arrastra</b> un acorde para ponerlo sobre la palabra correcta. <b>Un toque</b> en un acorde solo lo hace sonar (para ensayar acorde por acorde). <b>Dos toques o mantener presionado</b> abre la ventana: en una palabra, para agregarle un acorde; en un acorde, para cambiarlo o eliminarlo.</div>
     <div class="chart-scroll"><pre id="chart"></pre></div>
   </main>
   </div>
@@ -584,6 +603,12 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
   <div class="sub" id="cpops">Acordes del tono:</div>
   <div class="chips" id="cpopc"></div>
   <div class="row" id="cpopact"></div>
+</div>
+<div class="recv" id="recvbox" hidden role="dialog" aria-labelledby="recvt">
+  <h3 id="recvt">Te enviaron una canción</h3>
+  <div class="sub" id="recvinfo"></div>
+  <div class="row"><button class="btn primary" id="recvsave">Guardar en Mis canciones</button><button class="btn" id="recvno">Ahora no</button></div>
+  <div class="sub" id="recvnote" hidden></div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -1188,13 +1213,44 @@ $('chart').addEventListener('click',e=>{
     else if(ch){ deleteChord(+ch.dataset.i); }
     return;
   }
+  if(lpFired){ lpFired=false; return; }
   const w=e.target.closest('.w');
-  if(w){ openAddPop(w); return; }
+  if(w){ if(!wordHint){ wordHint=true; toast('Para agregar un acorde aquí, toca dos veces la palabra o mantenla presionada.'); } return; }
   const b=e.target.closest('.ch'); if(!b) return;
+  if(pop) closePop();
   const i=+b.dataset.i; selIndex=i;
   if(playing){ stop(); selIndex=i; start(); return; }
   ac(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.02,2.2,'block',4); highlight(i);
-  if(chordRefs[i]&&parsed.meta[chordRefs[i].li].isChordLine) openChordPop(b,i);
+});
+/* la ventana del acorde se abre con dos toques o manteniendo presionado (un toque solo suena) */
+let lpTimer=null, lpStart=null, lpFired=false, wordHint=false;
+function openPopFor(el){
+  if(editMode||!el) return false;
+  try{ const sel=getSelection(); if(sel) sel.removeAllRanges(); }catch(e){}
+  if(el.classList.contains('w')){ openAddPop(el); return true; }
+  const i=+el.dataset.i;
+  if(chordRefs[i]&&parsed.meta[chordRefs[i].li].isChordLine){ selIndex=i; highlight(i); openChordPop(el,i); return true; }
+  return false;
+}
+function lpCancel(){ clearTimeout(lpTimer); lpTimer=null; if(lpStart&&lpStart.el) lpStart.el.classList.remove('lp'); lpStart=null; }
+$('chart').addEventListener('pointerdown',e=>{
+  if(editMode||e.button>0) return;
+  const el=e.target.closest('.w')||e.target.closest('.ch'); if(!el) return;
+  lpCancel(); lpFired=false; lpStart={el,x:e.clientX,y:e.clientY};
+  lpTimer=setTimeout(()=>{ const st=lpStart; lpCancel(); if(!st||(drag&&drag.moved)) return;
+    if(openPopFor(st.el)){ lpFired=true; try{ navigator.vibrate&&navigator.vibrate(15); }catch(err){} } },500);
+  if(el.classList.contains('w')) el.classList.add('lp');
+});
+$('chart').addEventListener('pointermove',e=>{ if(lpStart&&Math.hypot(e.clientX-lpStart.x,e.clientY-lpStart.y)>8) lpCancel(); });
+['pointerup','pointercancel','pointerleave'].forEach(t=>$('chart').addEventListener(t,lpCancel));
+addEventListener('scroll',lpCancel,{passive:true});
+$('chart').addEventListener('dblclick',e=>{
+  const el=e.target.closest('.w')||e.target.closest('.ch'); if(!el||editMode) return;
+  e.preventDefault(); openPopFor(el);
+});
+$('chart').addEventListener('contextmenu',e=>{
+  const el=e.target.closest('.w')||e.target.closest('.ch'); if(!el||editMode) return;
+  e.preventDefault(); if(!pop) openPopFor(el);
 });
 $('bigger').onclick=()=>{ state.size=Math.min(30,state.size+2); render(); persist(); };
 $('smaller').onclick=()=>{ state.size=Math.max(11,state.size-2); render(); persist(); };
@@ -1233,7 +1289,7 @@ function renderSaved(){
   $('libq').hidden=list.length<6; $('libcount').textContent=list.length?list.length+' guardada'+(list.length>1?'s':''):'';
   $('lib').innerHTML=list.map((x,k)=>({x,k})).filter(({x})=>!q||(x.title||'').toLowerCase().includes(q)).map(({x,k})=>
     '<li class="'+(x.id===state.libId?'cur':'')+'"><button class="lt" data-open="'+x.id+'"><b>'+esc(x.title||'Sin título')+'</b><span>'+esc(x.keyName||'')+(x.updated?' · '+esc(fmtDate(x.updated)):'')+(x.id===state.libId?' · abierta':'')+'</span></button>'+
-    '<span class="la"><button class="btn" data-mv="-1" data-id="'+x.id+'" aria-label="Subir"'+(k===0?' disabled':'')+'>↑</button><button class="btn" data-mv="1" data-id="'+x.id+'" aria-label="Bajar"'+(k===list.length-1?' disabled':'')+'>↓</button><button class="btn" data-del="'+x.id+'">Borrar</button></span></li>').join('');
+    '<span class="la"><button class="btn" data-mv="-1" data-id="'+x.id+'" aria-label="Subir"'+(k===0?' disabled':'')+'>↑</button><button class="btn" data-mv="1" data-id="'+x.id+'" aria-label="Bajar"'+(k===list.length-1?' disabled':'')+'>↓</button><button class="btn" data-send="'+x.id+'">Enviar</button><button class="btn" data-del="'+x.id+'">Borrar</button></span></li>').join('');
   updateSaveState();
 }
 function confirmDiscard(btn,label){
@@ -1242,8 +1298,9 @@ function confirmDiscard(btn,label){
   setTimeout(()=>{ if(btn) delete btn.dataset.ok; },4000); return false;
 }
 $('lib').addEventListener('click',e=>{
-  const o=e.target.closest('[data-open]'), m=e.target.closest('[data-mv]'), d=e.target.closest('[data-del]');
+  const o=e.target.closest('[data-open]'), m=e.target.closest('[data-mv]'), d=e.target.closest('[data-del]'), sd=e.target.closest('[data-send]');
   const list=songs();
+  if(sd){ const x=list.find(y=>y.id===sd.dataset.send); if(x) sendSong(x); return; }
   if(o){ const x=list.find(y=>y.id===o.dataset.open); if(!x) return; if(x.id===state.libId&&!isDirty()){ toast('Ya está abierta.'); return; }
     if(!confirmDiscard(o,'la canción')) return;
     stop(); Object.assign(state,{title:x.title,text:x.text,shift:x.shift||0,timing:x.timing||null,rhythm:x.rhythm||null,meter:x.meter||4,libId:x.id}); undoStack=[]; $('undo').disabled=true; load(); renderSaved(); toast('Abierta: '+x.title); try{ document.querySelector('.sheet').scrollIntoView({block:'start'}); }catch(err){} }
@@ -2032,6 +2089,7 @@ $('pasteclean').onclick=async e=>{
     if(!navigator.clipboard||!navigator.clipboard.readText) throw new Error('no');
     const t=await navigator.clipboard.readText();
     if(!t||!t.trim()){ toast('El portapapeles está vacío. Primero copia la canción en la otra página.'); return; }
+    const lc=linkCode(t); if(lc&&t.trim().length<20000&&/acordia/i.test(t)){ receiveCode(lc); return; }
     applyCleaned(t);
   }catch(err){
     cleanNextPaste=true; $('pastehint').hidden=false; $('src').value=''; try{ $('src').focus(); }catch(e2){}
@@ -2041,9 +2099,129 @@ $('pasteclean').onclick=async e=>{
 $('cleanbox').onclick=()=>{ if(!$('src').value.trim()){ toast('El cuadro está vacío.'); return; } applyCleaned($('src').value); };
 $('src').addEventListener('paste',e=>{
   const t=(e.clipboardData||window.clipboardData).getData('text'); if(!t) return;
+  const lc=linkCode(t); if(lc&&/acordia/i.test(t)){ e.preventDefault(); cleanNextPaste=false; $('pastehint').hidden=true; receiveCode(lc); return; }
   const looksPage=/^ACORDIA\n/.test(t)||t.split('\n').some(l=>l.trim()&&(JUNK.test(l.trim())||isTab(l)||isUrl(l)));
   if(cleanNextPaste||(!$('src').value.trim()&&looksPage)){ e.preventDefault(); cleanNextPaste=false; $('pastehint').hidden=true; applyCleaned(t); }
 });
+
+/* ---------- enviar por enlace, copia de Mis canciones ---------- */
+const PUBLIC_URL='https://mesolano77.github.io/acordia/';
+const incomingHash=location.hash;
+const b64u={
+  enc(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000)); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); },
+  dec(str){ str=str.replace(/-/g,'+').replace(/_/g,'/'); while(str.length%4) str+='='; const s=atob(str), b=new Uint8Array(s.length); for(let i=0;i<s.length;i++) b[i]=s.charCodeAt(i); return b; }
+};
+async function streamBytes(bytes,T){ const st=new Blob([bytes]).stream().pipeThrough(T); return new Uint8Array(await new Response(st).arrayBuffer()); }
+async function packSong(x){
+  const o={v:1,t:x.title||'',x:x.text||'',s:x.shift||0,m:x.meter||4,i:x.id||''};
+  if(x.rhythm) o.r=x.rhythm; if(x.timing) o.ti=x.timing; if(x.keyName) o.k=x.keyName;
+  const raw=new TextEncoder().encode(JSON.stringify(o));
+  try{ if(typeof CompressionStream==='function') return 'z'+b64u.enc(await streamBytes(raw,new CompressionStream('deflate-raw'))); }catch(e){}
+  return 'u'+b64u.enc(raw);
+}
+async function unpackSong(code){
+  code=decodeURIComponent(code.trim()); const kind=code[0], bytes=b64u.dec(code.slice(1));
+  const raw=kind==='z'?await streamBytes(bytes,new DecompressionStream('deflate-raw')):bytes;
+  const o=JSON.parse(new TextDecoder().decode(raw));
+  if(!o||typeof o.x!=='string') throw new Error('bad');
+  return {title:String(o.t||'Canción recibida').slice(0,120),text:o.x,shift:+o.s||0,meter:+o.m||4,rhythm:o.r||null,timing:o.ti||null,keyName:o.k||'',from:String(o.i||'')};
+}
+function linkCode(text){ const m=/[#&]c=([A-Za-z0-9_\-%]+)/.exec(text||''); return m?m[1]:null; }
+function curEntry(){
+  const T=(parsed.origKey+state.shift+120)%12;
+  const keyName=parsed.chords.length?(parsed.minor?nmLong(T+9)+' menor':nmLong(T)+' mayor'):'';
+  return {id:state.libId||'',title:state.title||'Canción',text:state.text,shift:state.shift||0,meter:state.meter||4,rhythm:state.rhythm||null,timing:state.timing||null,keyName};
+}
+function showShareBox(url,title){
+  $('sharebox').hidden=false; $('sharelink').value=url;
+  $('sharemsg').innerHTML='Enlace de «'+esc(title)+'». Cópialo y pégalo en WhatsApp o Mensajes. Quien lo abra verá la canción con tus acordes y podrá guardarla.';
+  $('sharebox').scrollIntoView({block:'nearest'});
+}
+async function sendSong(x){
+  if(!x||!(x.text||'').trim()){ toast('No hay canción para enviar.'); return; }
+  let url; try{ url=PUBLIC_URL+'#c='+(await packSong(x)); }catch(e){ toast('No se pudo preparar el enlace.'); return; }
+  const title=x.title||'Canción';
+  if(!window.claude&&navigator.share){
+    try{ await navigator.share({title:title+' · Acordia',text:'Te mando «'+title+'» en Acordia:',url}); return; }
+    catch(err){ if(err&&err.name==='AbortError') return; }
+  }
+  showShareBox(url,title);
+  try{ await navigator.clipboard.writeText(url); toast('Enlace copiado. Pégalo en WhatsApp o Mensajes.'); }catch(e){ toast('Toca Copiar enlace.'); }
+}
+$('sendcur').onclick=()=>{ if(!state.text.trim()){ toast('Primero abre o pega una canción.'); return; } sendSong(curEntry()); };
+$('sharecopy').onclick=()=>{
+  const inp=$('sharelink'); try{ inp.focus(); inp.select(); inp.setSelectionRange(0,inp.value.length); }catch(e){}
+  const ok=()=>toast('Enlace copiado. Pégalo en WhatsApp o Mensajes.');
+  try{ navigator.clipboard.writeText(inp.value).then(ok,()=>{ let r=false; try{ r=document.execCommand('copy'); }catch(e){} toast(r?'Enlace copiado.':'Enlace seleccionado: toca Copiar.'); }); }
+  catch(e){ let r=false; try{ r=document.execCommand('copy'); }catch(e2){} toast(r?'Enlace copiado.':'Enlace seleccionado: toca Copiar.'); }
+};
+$('shareclose').onclick=()=>{ $('sharebox').hidden=true; };
+
+/* recibir */
+let incoming=null;
+function addReceived(x){
+  if(isDirty()) saveSong();
+  const list=songs(); let k=x.from?list.findIndex(y=>y.from===x.from):-1;
+  const entry={id:k>=0?list[k].id:('s'+Date.now().toString(36)),title:x.title,text:x.text,shift:x.shift,keyName:x.keyName,timing:x.timing,rhythm:x.rhythm,meter:x.meter,from:x.from||undefined,updated:Date.now()};
+  if(k>=0) list[k]=entry; else list.push(entry);
+  store.set('atril.songs',list);
+  stop(); Object.assign(state,{title:entry.title,text:entry.text,shift:entry.shift,timing:entry.timing,rhythm:entry.rhythm,meter:entry.meter,libId:entry.id});
+  undoStack=[]; $('undo').disabled=true; load(); renderSaved(); showTab('cancion');
+  if(typeof syncPush==='function') syncPush(entry);
+  toast((k>=0?'Actualizada':'Guardada')+' en Mis canciones: '+entry.title+'.');
+  try{ document.querySelector('.sheet').scrollIntoView({block:'start'}); }catch(e){}
+  return k>=0;
+}
+async function receiveCode(code){
+  try{ incoming=await unpackSong(code); }catch(e){ toast('Ese enlace de canción está incompleto o dañado.'); return false; }
+  const exists=incoming.from&&songs().some(y=>y.from===incoming.from);
+  $('recvinfo').innerHTML='<b>'+esc(incoming.title)+'</b>'+(incoming.keyName?' · '+esc(incoming.keyName):'')+'<br>Viene con sus acordes, tono y duraciones.'+(exists?' Ya la tienes: se reemplaza por esta versión.':'');
+  const ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const inSafari=ios&&!window.navigator.standalone&&!window.claude;
+  $('recvnote').hidden=!inSafari;
+  $('recvnote').innerHTML='¿Usas Acordia desde el ícono de la pantalla de inicio? Esta página es Safari y guarda aparte. Para guardarla allá: vuelve al mensaje, mantén el dedo sobre el enlace → <b>Copiar</b>, abre Acordia desde el ícono y toca <b>Pegar y limpiar</b>.';
+  $('recvsave').textContent=exists?'Actualizar en Mis canciones':'Guardar en Mis canciones';
+  $('recvbox').hidden=false; return true;
+}
+$('recvsave').onclick=()=>{ if(incoming) addReceived(incoming); incoming=null; $('recvbox').hidden=true; };
+$('recvno').onclick=()=>{ incoming=null; $('recvbox').hidden=true; };
+window.addEventListener('hashchange',()=>{ const c=linkCode(location.hash); if(c){ receiveCode(c); try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} } });
+
+/* copia de Mis canciones */
+$('libexport').onclick=async()=>{
+  const list=songs(); if(!list.length){ toast('Todavía no hay canciones guardadas.'); return; }
+  const d=new Date(), stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const name='acordia-mis-canciones-'+stamp+'.json';
+  const blob=new Blob([JSON.stringify({app:'acordia',v:1,exported:Date.now(),songs:list},null,1)],{type:'application/json'});
+  const dl=await getDl();
+  if(dl){ try{ await dl.save({filename:name,data:blob}); toast('Copia guardada ('+list.length+' canciones).'); }catch(err){ saveErr(err,'No se pudo guardar la copia.'); } return; }
+  let f=null; try{ f=new File([blob],name,{type:'application/json'}); }catch(e){}
+  if(f&&canShareFile(f)){ try{ await navigator.share({files:[f],title:'Mis canciones · Acordia'}); return; }catch(err){ if(err&&err.name==='AbortError') return; } }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },2000);
+  toast('Copia descargada ('+list.length+' canciones).');
+};
+function mergeSongs(incomingList){
+  const list=songs(); let added=0, updated=0;
+  incomingList.forEach(x=>{
+    if(!x||typeof x.text!=='string') return;
+    const k=list.findIndex(y=>y.id===x.id);
+    if(k<0){ list.push(Object.assign({},x,{id:x.id||('s'+Date.now().toString(36)+added)})); added++; }
+    else if((x.updated||0)>(list[k].updated||0)){ list[k]=x; updated++; }
+  });
+  store.set('atril.songs',list); renderSaved(); return {added,updated};
+}
+$('libimport').onchange=async e=>{
+  const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const txt=await f.text(); let data=null;
+    const c=linkCode(txt); if(c&&!/^\s*[\[{]/.test(txt)){ receiveCode(c); return; }
+    data=JSON.parse(txt); const arr=Array.isArray(data)?data:data.songs;
+    if(!Array.isArray(arr)) throw new Error('formato');
+    const r=mergeSongs(arr);
+    if(typeof syncPushAll==='function') syncPushAll();
+    toast('Copia importada: '+r.added+' nuevas, '+r.updated+' actualizadas.');
+  }catch(err){ toast('Ese archivo no es una copia de Acordia.'); }
+};
 
 /* ---------- atajo de iPhone ---------- */
 const ATAJO_JS=[
@@ -2090,6 +2268,7 @@ function load(){
 }
 buildPiano(); load(); renderSaved();
 appReady=true; render(); showTab(tabFromHash());
+{ const c=linkCode(incomingHash); if(c) receiveCode(c); }
 })();
 </script>
 
