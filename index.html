@@ -873,17 +873,24 @@ function fillTargets(){
 function norm(s){ s=((s%12)+12)%12; return s>6?s-12:s; }
 
 /* ---------- audio ---------- */
-let ctx=null, master=null, comp=null;
-function newMaster(){ master=ctx.createGain(); master.gain.value=0.55; master.connect(comp); }
+let ctx=null, master=null, comp=null, verb=null;
+const TAP_DUR=7, REL=1.1; /* un acorde tocado suena ~7 s y se apaga solo, o al tocar el siguiente */
+function newMaster(){ master=ctx.createGain(); master.gain.value=0.55; master.connect(comp); if(verb) master.connect(verb); }
+function makeVerb(){
+  /* reverberación de sala generada en el dispositivo */
+  const sr=ctx.sampleRate, n=Math.floor(sr*2.6), ir=ctx.createBuffer(2,n,sr);
+  for(let ch=0;ch<2;ch++){ const d=ir.getChannelData(ch); let lp=0; for(let i=0;i<n;i++){ lp=lp*0.6+(Math.random()*2-1)*0.4; d[i]=i<sr*0.012?0:lp*Math.pow(1-i/n,3.4); } }
+  const cv=ctx.createConvolver(); cv.buffer=ir; const wet=ctx.createGain(); wet.gain.value=0.32; cv.connect(wet); wet.connect(comp); return cv;
+}
 function ac(){
-  if(!ctx){ ctx=new (window.AudioContext||window.webkitAudioContext)(); comp=ctx.createDynamicsCompressor(); comp.connect(ctx.destination); newMaster(); loadSamples(); }
+  if(!ctx){ ctx=new (window.AudioContext||window.webkitAudioContext)(); comp=ctx.createDynamicsCompressor(); comp.connect(ctx.destination); try{ verb=makeVerb(); }catch(e){ verb=null; } newMaster(); loadSamples(); }
   if(ctx.state==='suspended') ctx.resume();
   return ctx;
 }
-function silence(){
-  if(!ctx) return; const old=master;
-  try{ old.gain.setTargetAtTime(0.0001,ctx.currentTime,0.04); }catch(e){}
-  setTimeout(()=>{ try{ old.disconnect(); }catch(e){} },400);
+function silence(tc){
+  if(!ctx) return; const old=master; tc=tc||0.04;
+  try{ old.gain.setTargetAtTime(0.0001,ctx.currentTime,tc); }catch(e){}
+  setTimeout(()=>{ try{ old.disconnect(); }catch(e){} },Math.max(400,tc*12000));
   newMaster();
 }
 /* piano de cola (Salamander Grand Piano, CC BY 3.0) */
@@ -910,9 +917,12 @@ function note(midi,t,dur,vel){
     let best=samples[0]; for(const s of samples){ if(Math.abs(s[0]-midi)<Math.abs(best[0]-midi)) best=s; }
     const src=ctx.createBufferSource(); src.buffer=best[1]; src.playbackRate.value=Math.pow(2,(midi-best[0])/12);
     const g=ctx.createGain(); const peak=Math.min(1.3,vel*3.4);
-    g.gain.setValueAtTime(peak,t); g.gain.setValueAtTime(peak,t+Math.max(0.05,dur-0.04));
-    g.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.35);
-    src.connect(g); g.connect(master); src.start(t); src.stop(t+dur+0.4);
+    const maxLen=best[1].duration/src.playbackRate.value-0.05, end=Math.min(t+Math.max(0.05,dur),t+maxLen-REL);
+    g.gain.setValueAtTime(peak,t);
+    if(end-t>2){ g.gain.setValueAtTime(peak,t+0.4); g.gain.linearRampToValueAtTime(peak*2.6,Math.min(end,t+4.5)); g.gain.setValueAtTime(peak*2.6,end); }
+    else g.gain.setValueAtTime(peak,Math.max(t+0.02,end));
+    g.gain.exponentialRampToValueAtTime(0.0001,Math.max(t+0.1,end)+REL);
+    src.connect(g); g.connect(master); src.start(t); src.stop(Math.min(t+maxLen,Math.max(t+0.1,end)+REL+0.05));
     return;
   }
   const f=440*Math.pow(2,(midi-69)/12);
@@ -929,6 +939,7 @@ function note(midi,t,dur,vel){
   });
 }
 let prevVoice=null;
+function damp(){ if(ctx&&!playing) silence(0.09); }
 function voicing(c){
   const tr=c.root+state.shift;
   const pcs=[...new Set(c.iv.map(i=>((tr+i)%12+12)%12))];
@@ -1082,7 +1093,7 @@ $('bars').addEventListener('click',e=>{
   const b=e.target.closest('.bseg'); if(!b) return;
   const i=+b.dataset.k; selBar=i; selIndex=i;
   if(playing){ const f=followRun; stop(); selIndex=i; start({follow:f}); renderBars(); return; }
-  if(!playing){ ac(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.02,Math.max(0.8,beatsOf(i)*60/+$('bpm').value),'block',4); highlight(i,false); }
+  if(!playing){ ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); highlight(i,false); }
   renderBars();
 });
 $('durpick').addEventListener('click',e=>{
@@ -1259,7 +1270,7 @@ $('chart').addEventListener('click',e=>{
   if(pop) closePop();
   const i=+b.dataset.i; selIndex=i;
   if(playing){ stop(); selIndex=i; start(); return; }
-  ac(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.02,2.2,'block',4); highlight(i);
+  ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); highlight(i);
 });
 /* la ventana del acorde se abre con dos toques o manteniendo presionado (un toque solo suena) */
 let lpTimer=null, lpStart=null, lpFired=false, wordHint=false;
@@ -1747,10 +1758,10 @@ function absVoicing(root,iv,bassPc,inv){
   return {notes,bass};
 }
 function playAbs(v,slow){
-  ac(); stop(); const t=ctx.currentTime+0.05;
-  if(inst==='guitarra'&&v.sh){ const ms=v.sh.midi.filter(m=>m!=null); if(slow){ ms.forEach((m,k)=>gnote(m,t+0.5*k,1.4,0.22)); strum(ms,t+0.5*ms.length+0.3,2.6,false,0.2); } else strum(ms,t,2.8,false,0.2); return; }
-  if(slow){ note(v.bass,t,1.2,0.3); v.notes.forEach((n,k)=>note(n,t+0.55*(k+1),1.0,0.2)); const te=t+0.55*(v.notes.length+1); note(v.bass,te,2,0.3); v.notes.forEach(n=>note(n,te+0.01,2,0.17)); }
-  else { note(v.bass,t,2.2,0.32); v.notes.forEach(n=>note(n,t+0.01,2.2,0.18)); }
+  ac(); if(playing) stop(); else { timers.forEach(clearTimeout); timers=[]; silence(0.09); } const t=ctx.currentTime+0.05;
+  if(inst==='guitarra'&&v.sh){ const ms=v.sh.midi.filter(m=>m!=null); if(slow){ ms.forEach((m,k)=>gnote(m,t+0.5*k,1.4,0.22)); strum(ms,t+0.5*ms.length+0.3,TAP_DUR,false,0.2); } else strum(ms,t,TAP_DUR,false,0.2); return; }
+  if(slow){ note(v.bass,t,1.2,0.3); v.notes.forEach((n,k)=>note(n,t+0.55*(k+1),1.0,0.2)); const te=t+0.55*(v.notes.length+1); note(v.bass,te,TAP_DUR,0.3); v.notes.forEach(n=>note(n,te+0.01,TAP_DUR,0.17)); }
+  else { note(v.bass,t,TAP_DUR,0.32); v.notes.forEach(n=>note(n,t+0.01,TAP_DUR,0.18)); }
 }
 /* teclado genérico (C3–B5) con acorde y bajo en colores distintos */
 function kbBuild(el,low,high){
@@ -1827,11 +1838,11 @@ $('lines').addEventListener('click',e=>{
   if(lp){ const was=lp.classList.contains('on'); stop(); if(!was){ start({follow:false,range:[+lp.dataset.a,+lp.dataset.b]}); lp.classList.add('on'); lp.textContent='■'; } return; }
   const db=e.target.closest('.lpick .db');
   if(db&&selBlk!=null){ pushRUndo(); ensureRhythm(); state.rhythm.beats[selBlk]=+db.dataset.v; setRhythm(state.rhythm); return; }
-  if(e.target.closest('[data-hear]')&&selBlk!=null){ stop(); ac(); prevVoice=null; playChord(parsed.chords[selBlk],ctx.currentTime+0.05,Math.max(0.8,beatsOf(selBlk)*60/+$('bpm').value),'block',4); highlight(selBlk,false); return; }
+  if(e.target.closest('[data-hear]')&&selBlk!=null){ stop(); ac(); prevVoice=null; playChord(parsed.chords[selBlk],ctx.currentTime+0.05,TAP_DUR,'block',4); highlight(selBlk,false); return; }
   if(e.target.closest('[data-from]')&&selBlk!=null){ stop(); selIndex=selBlk; start({follow:false}); return; }
   const b=e.target.closest('.blk');
   if(b){ const i=+b.dataset.i; selBlk=(selBlk===i&&!playing)?null:i; selIndex=i;
-    if(playing){ stop(); start({follow:false}); } else { ac(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.02,0.9,'block',4); }
+    if(playing){ stop(); start({follow:false}); } else { ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); }
     renderLines(); highlight(i,false); }
 });
 $('autofix').onclick=()=>{ if(!parsed.chords.length) return; pushRUndo(); $('usetiming').checked=false; setRhythm(autoRhythm(),'Listo: Acordia ajustó cada acorde según dónde está en la letra. Escucha cada línea con ▶.'); };
@@ -2074,13 +2085,13 @@ function applyPop(text){
   const p=pop; closePop();
   if(p.mode==='add') addChordAt(p.li,p.col,raw);
   else { replaceChord(p.i,raw); }
-  const n=parseChord(raw); if(n){ ac(); prevVoice=null; playChord({...n,root:n.root,bass:n.bass},ctx.currentTime+0.03,1.6,'block',4,false); }
+  const n=parseChord(raw); if(n){ ac(); damp(); prevVoice=null; playChord({...n,root:n.root,bass:n.bass},ctx.currentTime+0.04,TAP_DUR,'block',4,false); }
 }
 $('cpopf').addEventListener('submit',e=>{ e.preventDefault(); applyPop($('cpopi').value); });
 $('cpopc').addEventListener('click',e=>{ const c=e.target.closest('[data-n]'); if(c) applyPop(c.dataset.n); });
 $('cpopact').addEventListener('click',e=>{
   const a=e.target.closest('[data-act]'); if(!a||!pop) return; const i=pop.i;
-  if(a.dataset.act==='hear'){ ac(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.02,2.2,'block',4); return; }
+  if(a.dataset.act==='hear'){ ac(); damp(); prevVoice=null; playChord(parsed.chords[i],ctx.currentTime+0.03,TAP_DUR,'block',4); return; }
   if(a.dataset.act==='como'){ const c=parsed.chords[i]; closePop(); showTab('como'); setDict((c.root+state.shift+120)%12,c.suf,c.bass==null?null:(c.bass+state.shift+120)%12); return; }
   if(a.dataset.act==='del'){ closePop(); deleteChord(i); }
 });
@@ -2270,14 +2281,15 @@ function gtrShort(sh){ const n=shapeNames(sh).filter(Boolean); return 'Cuerdas (
 const gBufs=new Map(); let gBody=null;
 function gBuf(midi){
   if(gBufs.has(midi)) return gBufs.get(midi);
-  const sr=ctx.sampleRate, f=440*Math.pow(2,(midi-69)/12), n=Math.floor(sr*3.2);
+  const sr=ctx.sampleRate, f=440*Math.pow(2,(midi-69)/12), n=Math.floor(sr*5);
   const buf=ctx.createBuffer(1,n,sr), y=buf.getChannelData(0);
-  const P=sr/f-0.5, i0=Math.floor(P), fr=P-i0, exc=i0+2;
-  const decay=Math.pow(0.001,1/(f*(midi<50?3.4:midi<60?2.8:2.2)));
+  const P=sr/f-(midi<55?0.4:0.3), i0=Math.floor(P), fr=P-i0, exc=i0+2;
+  const decay=Math.pow(0.001,1/(f*(midi<50?9:midi<60?7.5:6)));
   let lp=0; for(let i=0;i<exc&&i<n;i++){ lp=lp*0.45+(Math.random()*2-1)*0.55; y[i]=lp; }
   const pick=Math.max(1,Math.round(P*0.14)); for(let i=exc-1;i>=pick;i--) y[i]-=0.6*y[i-pick];
   let prev=0;
-  for(let i=exc;i<n;i++){ const a=y[i-i0], b=y[i-i0-1], z=a+(b-a)*fr; y[i]=decay*0.5*(z+prev); prev=z; }
+  const S=midi<55?0.4:0.3;
+  for(let i=exc;i<n;i++){ const a=y[i-i0], b=y[i-i0-1], z=a+(b-a)*fr; y[i]=decay*((1-S)*z+S*prev); prev=z; }
   let pk=0; for(let i=0;i<n;i++) pk=Math.max(pk,Math.abs(y[i]));
   const g=pk>0?0.9/pk:1, fade=Math.floor(sr*0.05);
   for(let i=0;i<n;i++){ y[i]*=g; if(i>n-fade) y[i]*=(n-i)/fade; }
@@ -2296,9 +2308,11 @@ function gOut(){
 function gnote(midi,t,dur,vel){
   while(midi<40) midi+=12; while(midi>88) midi-=12;
   const src=ctx.createBufferSource(); src.buffer=gBuf(midi);
-  const g=ctx.createGain(), v=vel*1.6, end=t+Math.min(3,Math.max(0.15,dur));
-  g.gain.setValueAtTime(v,t); g.gain.setValueAtTime(v,end); g.gain.exponentialRampToValueAtTime(0.0001,end+0.12);
-  src.connect(g); g.connect(gOut()); src.start(t); src.stop(end+0.15);
+  const g=ctx.createGain(), v=vel*1.6, end=t+Math.min(4.2,Math.max(0.15,dur));
+  g.gain.setValueAtTime(v,t);
+  if(end-t>2){ g.gain.setValueAtTime(v,t+0.3); g.gain.linearRampToValueAtTime(v*2.6,Math.min(end,t+3.5)); }
+  g.gain.setValueAtTime(end-t>2?v*2.6:v,end); g.gain.exponentialRampToValueAtTime(0.0001,end+0.7);
+  src.connect(g); g.connect(gOut()); src.start(t); src.stop(Math.min(t+4.95,end+0.75));
 }
 function strum(ms,t,dur,up,vel){ const L=up?ms.slice().reverse():ms; L.forEach((m,k)=>gnote(m,t+k*0.024,dur-k*0.024,vel*(up?0.75:1)*(k===0&&!up?1.1:1))); }
 function gtrPlay(sh,t,dur,style,beats){
