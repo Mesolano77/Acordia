@@ -251,6 +251,7 @@ pre#chart .w.pick{background:var(--felt); color:var(--on-ink)}
 .qtone .btn{flex:0 0 auto; font-weight:700; padding:8px 14px}
 .qkey{flex:1 1 auto; text-align:center; font-weight:700; color:var(--chord); min-width:0}
 .qkey small{display:block; font-weight:500; color:var(--muted); font-size:.75rem}
+.qkey select{width:100%; font:700 1rem var(--f-display); color:var(--chord); text-align:center; text-align-last:center; padding:6px 4px; border:1px solid var(--line); border-radius:8px; background:var(--surface)}
 .libsearch{display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px}
 @media (max-width:560px){ .libsearch{grid-template-columns:1fr 1fr} .libsearch input{grid-column:1/-1} }
 .libsearch input,.libsearch select{min-width:0; font-size:16px}
@@ -396,10 +397,11 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
         </div>
         <div class="addcol">
           <h3>Pegar texto</h3>
-          <div class="sub">Copia la canción de cualquier página y toca <b>Pegar y limpiar</b>, o abre un PDF.</div>
+          <div class="sub">Copia la canción de cualquier página y toca <b>Pegar y limpiar</b>, abre un PDF con cifrado, o una partitura en MusicXML (.musicxml, .mxl).</div>
           <div class="row">
             <button class="btn primary" id="pasteclean">📋 Pegar y limpiar</button>
             <label class="btn primary filebtn" for="pdfin">📄 Abrir PDF</label><input type="file" id="pdfin" accept="application/pdf,.pdf" class="vh">
+            <label class="btn primary filebtn" for="scorein">🎼 Abrir partitura</label><input type="file" id="scorein" class="vh">
           </div>
           <div class="sub" id="pdfstat" role="status"></div>
           <div class="sub" id="pastehint" hidden>Este navegador no deja leer el portapapeles con un botón. Mantén el dedo en el cuadro de texto y elige <b>Pegar</b>: Acordia lo limpia sola.</div>
@@ -409,6 +411,11 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
           <details class="more" id="moreopts">
             <summary>Más opciones</summary>
             <div>
+              <details id="scorehelp"><summary>¿Cómo traigo una partitura en PDF o en foto?</summary><div class="sub">
+                Acordia lee partituras en formato <b>MusicXML</b> (archivos .musicxml, .xml o .mxl): de ahí saca la letra, el cifrado y el tono. Si la partitura no trae cifrado, calcula los acordes a partir de las notas.<br>
+                Una partitura en <b>PDF o foto</b> primero hay que convertirla a MusicXML con un programa de reconocimiento de partituras:
+                <b>Audiveris</b> (gratis, para Mac y Windows), <b>MuseScore</b> (gratis, para revisar y exportar como MusicXML) o, en el iPhone, apps como <b>PlayScore 2</b> u <b>Opuscan</b> (cobran por uso). Luego toca <b>🎼 Abrir partitura</b> y elige el archivo.
+              </div></details>
               <div class="row"><button class="btn" id="cleanbox">Limpiar el texto de arriba</button><span class="sub">Quita menús y basura de lo que ya está en el cuadro.</span></div>
 
               <div class="joinbox" id="joinbox">
@@ -460,7 +467,7 @@ pre.tail{margin:0; font-family:var(--f-mono); font-size:13px; background:var(--f
       </div>
       <div class="qtone" role="group" aria-label="Cambiar el tono">
         <button class="btn" id="qdown" type="button" aria-label="Bajar medio tono">− ½ tono</button>
-        <span class="qkey" id="qkey">—</span>
+        <span class="qkey" id="qkey"><select id="qsel" aria-label="Elegir el tono de la canción"></select><small id="qsub"></small></span>
         <button class="btn primary" id="play3" type="button" aria-label="Reproducir con piano">▶</button>
         <button class="btn" id="qup" type="button" aria-label="Subir medio tono">+ ½ tono</button>
       </div>
@@ -996,13 +1003,13 @@ function tonosTxt(s){
   return (s>0?'+':'−')+a+' semitono'+(a>1?'s':'')+' ('+tt+' '+word+(s>0?' arriba':' abajo')+')';
 }
 function renderKey(){
-  if(!parsed.chords.length){ $('qkey').textContent='—'; $('keyline').textContent='Sin acordes detectados'; $('shiftline').textContent=''; $('capoline').textContent=''; fillTargets(); return; }
+  if(!parsed.chords.length){ $('qsel').innerHTML='<option>—</option>'; $('qsub').textContent=''; $('keyline').textContent='Sin acordes detectados'; $('shiftline').textContent=''; $('capoline').textContent=''; fillTargets(); return; }
   const shiftSaved=state.shift;
   state.shift=0; const orig=keyLabel(parsed.origKey,parsed.minor).replace(/ <span.*$/,'');
   state.shift=shiftSaved;
   const T=(parsed.origKey+state.shift+120)%12;
   $('keyline').innerHTML='<b>'+keyLabel(T,parsed.minor)+'</b>';
-  $('qkey').innerHTML=(parsed.minor?nmLong(T+9)+' menor':nmLong(T)+' mayor')+'<small>'+esc(tonosTxt(state.shift))+'</small>';
+  $('qsub').textContent=tonosTxt(state.shift);
   $('shiftline').textContent='Original: '+orig+' · '+tonosTxt(state.shift);
   const shapes=[0,9,7,4,2]; let best=null;
   shapes.forEach(s=>{ const c=(T-s+12)%12; if(c<=7&&(best==null||c<best.c)) best={c,s}; });
@@ -1020,7 +1027,7 @@ function fillTargets(){
     state.shift=keep;
     h+='<option value="'+pc+'"'+(pc===T?' selected':'')+'>'+lab+(i===0?' (original)':'')+'</option>';
   }
-  sel.innerHTML=h;
+  sel.innerHTML=h; $('qsel').innerHTML=h;
 }
 function norm(s){ s=((s%12)+12)%12; return s>6?s-12:s; }
 
@@ -1348,8 +1355,10 @@ $('tapcancel').onclick=()=>{ taps=null; $('tapbox').hidden=true; $('tapstart').d
 function persist(){ store.set('atril.draft',{title:state.title,text:state.text,shift:state.shift,nota:state.nota,size:state.size,timing:state.timing||null,rhythm:state.rhythm||null,meter:state.meter||4,libId:state.libId||null}); if(typeof updateSaveState==='function') updateSaveState(); }
 function setShift(s){ state.shift=norm(s); prevVoice=null; render(); persist(); }
 $('up').onclick=()=>setShift(state.shift+1);
-$('qup').onclick=()=>{ setShift(state.shift+1); toast('Tono: '+$('qkey').firstChild.textContent); };
-$('qdown').onclick=()=>{ setShift(state.shift-1); toast('Tono: '+$('qkey').firstChild.textContent); };
+const qName=()=>{ const o=$('qsel').selectedOptions[0]; return o?o.textContent.replace(' (original)',''):''; };
+$('qup').onclick=()=>{ setShift(state.shift+1); toast('Tono: '+qName()); };
+$('qdown').onclick=()=>{ setShift(state.shift-1); toast('Tono: '+qName()); };
+$('qsel').onchange=e=>{ setShift(+e.target.value-parsed.origKey); toast('Tono: '+qName()); };
 $('down').onclick=()=>setShift(state.shift-1);
 $('reset').onclick=()=>setShift(0);
 $('target').onchange=e=>setShift(+e.target.value-parsed.origKey);
@@ -2888,7 +2897,7 @@ function subFix(x,sr,f){
   }
   return best;
 }
-const APP_VER='20261110-1639';
+const APP_VER='20261110-2045';
 /* modo guitarra: qué cuerda suena, mirando la serie completa de armónicos de cada cuerda */
 const GSTR_F=[40,45,50,55,59,64].map(m=>440*Math.pow(2,(m-69)/12));
 function gtrPick(x,sr,a4){
@@ -3188,6 +3197,155 @@ $('pdfin').onchange=async e=>{
     addFiles(files); $('ed').open=true; $('photobox').scrollIntoView({block:'start'});
     st.textContent='Listo: agregué '+files.length+' página'+(files.length>1?'s':'')+' a "Desde fotos". Toca Leer y unir en este orden.';
   }catch(err){ st.textContent=err&&err.message==='net'?'No se pudo cargar el lector de PDF (revisa la conexión a internet).':'No pude abrir ese PDF. Si está protegido o dañado, prueba con Pegar y limpiar.'; }
+};
+
+/* ---------- partituras: MusicXML (.musicxml, .xml, .mxl) ---------- */
+async function unzipScore(buf){
+  const u8=new Uint8Array(buf), dv=new DataView(buf);
+  let e=-1; for(let i=u8.length-22;i>=Math.max(0,u8.length-66000);i--){ if(dv.getUint32(i,true)===0x06054b50){ e=i; break; } }
+  if(e<0) throw new Error('zip');
+  const n=dv.getUint16(e+10,true); let p=dv.getUint32(e+16,true); const ents=[];
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const method=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true), nl=dv.getUint16(p+28,true), xl=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), off=dv.getUint32(p+42,true);
+    ents.push({name:new TextDecoder().decode(u8.subarray(p+46,p+46+nl)),method,csize,off}); p+=46+nl+xl+cl;
+  }
+  const read=async en=>{ const nl=dv.getUint16(en.off+26,true), xl=dv.getUint16(en.off+28,true), st=en.off+30+nl+xl, data=u8.slice(st,st+en.csize);
+    if(en.method===0) return new TextDecoder().decode(data);
+    return new TextDecoder().decode(await streamBytes(data,new DecompressionStream('deflate-raw'))); };
+  let target=null; const cont=ents.find(x=>x.name==='META-INF/container.xml');
+  if(cont){ const m=/full-path="([^"]+)"/.exec(await read(cont)); if(m) target=ents.find(x=>x.name===m[1]); }
+  if(!target) target=ents.find(x=>!/^META-INF\//.test(x.name)&&/\.(xml|musicxml)$/i.test(x.name));
+  if(!target) throw new Error('zip');
+  return read(target);
+}
+const MXL_KIND={'major':'','minor':'m','augmented':'aug','diminished':'dim','dominant':'7','major-seventh':'maj7','minor-seventh':'m7','diminished-seventh':'dim7','augmented-seventh':'7#5','half-diminished':'m7b5','major-minor':'mmaj7','major-sixth':'6','minor-sixth':'m6','dominant-ninth':'9','major-ninth':'maj9','minor-ninth':'m9','dominant-11th':'11','major-11th':'maj11','minor-11th':'m11','dominant-13th':'13','major-13th':'maj13','minor-13th':'m13','suspended-second':'sus2','suspended-fourth':'sus4','power':'5'};
+const STEP_PC={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+function mxlName(step,alter){ return step+(alter>0?'#'.repeat(alter):alter<0?'b'.repeat(-alter):''); }
+function readScore(xmlText){
+  const doc=new DOMParser().parseFromString(xmlText,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length) throw new Error('xml');
+  const root=doc.documentElement; if(root.nodeName==='score-timewise') throw new Error('timewise');
+  const q=(el,sel)=>el.querySelector(sel), txt=(el,sel)=>{ const x=el&&el.querySelector(sel); return x?x.textContent.trim():''; };
+  const title=txt(root,'work > work-title')||txt(root,'movement-title')||txt(root,'credit-words');
+  const parts=[...root.children].filter(x=>x.nodeName==='part');
+  let fifths=0, mode='major', beats=4, btype=4; const measStart=[]; const harm=[]; const notes=[]; const lyr={};
+  parts.forEach((part,pi)=>{
+    let div=1, pos=0, last=0;
+    [...part.children].filter(x=>x.nodeName==='measure').forEach((m,mi)=>{
+      if(pi===0) measStart[mi]=pos;
+      for(const el of m.children){
+        const nn=el.nodeName;
+        if(nn==='attributes'){ const d=txt(el,'divisions'); if(d) div=+d||1; if(pi===0){ const f=txt(el,'key > fifths'); if(f!=='') fifths=+f; const md=txt(el,'key > mode'); if(md) mode=md; const b=txt(el,'time > beats'), bt=txt(el,'time > beat-type'); if(b) beats=+b||4; if(bt) btype=+bt||4; } }
+        else if(nn==='backup') pos-=(+txt(el,'duration')||0)/div;
+        else if(nn==='forward') pos+=(+txt(el,'duration')||0)/div;
+        else if(nn==='harmony'){
+          const st=txt(el,'root > root-step'); if(!st) continue;
+          const al=+txt(el,'root > root-alter')||0, kd=q(el,'kind'), kind=kd?kd.textContent.trim():'major';
+          let suf=MXL_KIND[kind]; if(suf==null) suf=(kd&&kd.getAttribute('text'))||'';
+          const bs=txt(el,'bass > bass-step'), ba=+txt(el,'bass > bass-alter')||0, off=(+txt(el,'offset')||0)/div;
+          harm.push({t:pos+off,name:mxlName(st,al)+suf+(bs?'/'+mxlName(bs,ba):'')});
+        }
+        else if(nn==='note'){
+          if(q(el,'grace')) continue;
+          const isChord=!!q(el,'chord'), dur=(+txt(el,'duration')||0)/div, start=isChord?last:pos;
+          if(!isChord) last=pos;
+          if(!q(el,'rest')){ const st=txt(el,'pitch > step'); if(st){ const midi=12*((+txt(el,'pitch > octave'))+1)+STEP_PC[st]+(+txt(el,'pitch > alter')||0); notes.push({t:start,d:dur,midi,part:pi}); } }
+          if(!isChord) [...el.children].filter(x=>x.nodeName==='lyric').forEach((ly,li)=>{
+            const num=ly.getAttribute('number')||String(li+1), t=txt(ly,'text'); if(!t) return;
+            (lyr[pi]=lyr[pi]||{}); (lyr[pi][num]=lyr[pi][num]||[]).push({t:start,text:t,syl:txt(ly,'syllabic')||'single',ext:!!q(ly,'extend')});
+          });
+          if(!isChord) pos+=dur;
+        }
+      }
+    });
+    if(pi===0) measStart.push(pos);
+  });
+  return {title,fifths,mode,beats,btype,measStart,harm:harm.sort((a,b)=>a.t-b.t),notes,lyr};
+}
+/* acordes estimados desde las notas (cuando la partitura no trae cifrado) */
+const TPL=[['',[0,4,7]],['m',[0,3,7]],['7',[0,4,7,10]],['dim',[0,3,6]],['m7',[0,3,7,10]],['maj7',[0,4,7,11]]];
+function guessChords(sc){
+  const beatLen=4/sc.btype*(sc.btype===8&&sc.beats%3===0?3:1), end=sc.measStart[sc.measStart.length-1]||0;
+  const tonic=((sc.fifths*7)%12+12)%12, minor=sc.mode==='minor', ton=minor?(tonic+9)%12:tonic;
+  const dia=new Set((minor?[0,2,3,5,7,8,10,11]:[0,2,4,5,7,9,11]).map(x=>(ton+x)%12));
+  const out=[]; let prev=null;
+  for(let t=0;t<end-1e-6;t+=beatLen){
+    const h=new Array(12).fill(0); let low=999, lowPc=-1;
+    sc.notes.forEach(n=>{ const ov=Math.min(n.t+n.d,t+beatLen)-Math.max(n.t,t); if(ov<=0) return; h[n.midi%12]+=ov*(n.midi<55?1.4:1); if(n.midi<low){ low=n.midi; lowPc=n.midi%12; } });
+    const tot=h.reduce((a,b)=>a+b,0); if(!tot) continue;
+    let best=null;
+    for(let r=0;r<12;r++) for(const [suf,iv] of TPL){
+      const tones=iv.map(x=>(r+x)%12); let sc2=tones.reduce((a,p)=>a+h[p],0)-0.6*(tot-tones.reduce((a,p)=>a+h[p],0));
+      sc2-=0.15*tot*(iv.length-3); if(!iv.every(x=>dia.has((r+x)%12))) sc2-=0.25*tot; if(lowPc===r) sc2+=0.25*tot; if(!h[r]) sc2-=0.3*tot;
+      if(prev&&prev.r===r&&prev.suf===suf) sc2+=0.12*tot;
+      if(!best||sc2>best.s) best={r,suf,s:sc2};
+    }
+    if(!prev||prev.r!==best.r||prev.suf!==best.suf){ out.push({t,name:nameOfPc(best.r,minor?(ton+3)%12:ton)+best.suf}); prev=best; }
+  }
+  return out;
+}
+function nameOfPc(pc,majTonic){ const flat=FLAT_KEYS.has(majTonic); return (flat?FLAT:SHARP)[pc]; }
+/* arma la letra con los acordes encima, como un cifrado */
+function scoreToChart(sc){
+  let chords=sc.harm.length?sc.harm.filter((c,i,a)=>!i||c.name!==a[i-1].name):guessChords(sc);
+  const guessed=!sc.harm.length;
+  /* parte con letra (la que más sílabas tenga) */
+  let lp=null, best=0; Object.keys(sc.lyr).forEach(pi=>{ const n=(sc.lyr[pi]['1']||Object.values(sc.lyr[pi])[0]||[]).length; if(n>best){ best=n; lp=pi; } });
+  const verses=lp!=null?Object.keys(sc.lyr[lp]).sort((a,b)=>+a-+b):[];
+  const mS=sc.measStart, measAt=t=>{ let i=0; while(i+1<mS.length&&mS[i+1]<=t+1e-6) i++; return i; };
+  const lines=[];
+  if(!verses.length){
+    /* sin letra: acordes por compases, 4 por línea */
+    const per=[]; chords.forEach(c=>{ const m=measAt(c.t); (per[m]=per[m]||[]).push(c.name); });
+    for(let m=0;m<mS.length-1;m+=4){ const seg=[]; for(let k=m;k<Math.min(m+4,mS.length-1);k++) seg.push((per[k]||['%']).join(' ')); lines.push(seg.join('   |   ')); }
+    return {text:lines.join('\n'),guessed,verses:0};
+  }
+  verses.forEach((v,vi)=>{
+    const syl=sc.lyr[lp][v];
+    if(verses.length>1) lines.push((vi?'\n':'')+'Estrofa '+v+':');
+    /* cortar en líneas: por puntuación o largo */
+    let cur=[], len=0; const groups=[];
+    syl.forEach((s,i)=>{ cur.push(s); len+=s.text.length+1; const nx=syl[i+1];
+      if(!nx||((/[.,;:!?]$/.test(s.text)&&len>=18)||len>=36)&&(s.syl==='single'||s.syl==='end')){ groups.push(cur); cur=[]; len=0; } });
+    groups.forEach((g,gi)=>{
+      const t0=gi===0?-1e9:g[0].t, t1=gi+1<groups.length?groups[gi+1][0].t:1e9;
+      let lyric='', cols=[];
+      g.forEach(s=>{ cols.push({t:s.t,c:lyric.length}); lyric+=s.text; if(s.syl==='single'||s.syl==='end') lyric+=' '; });
+      let cl='';
+      chords.filter(c=>c.t>=t0-1e-6&&c.t<t1-1e-6).forEach(c=>{
+        let col=0; for(const x of cols){ if(x.t<=c.t+1e-6) col=x.c; else break; }
+        const after=cols.find(x=>x.t>=c.t-1e-6); if(after&&Math.abs(after.t-c.t)<1e-6) col=after.c;
+        if(col<cl.length+ (cl.length?1:0)) col=cl.length+(cl.length?1:0);
+        cl=cl.padEnd(col,' ')+c.name;
+      });
+      if(cl.trim()) lines.push(cl.replace(/\s+$/,''));
+      lines.push(lyric.replace(/\s+$/,''));
+    });
+  });
+  return {text:lines.join('\n'),guessed,verses:verses.length};
+}
+
+function loadText(text,title){
+  undoStack.push(state.text); if(undoStack.length>40) undoStack.shift(); $('undo').disabled=false;
+  stop(); Object.assign(state,{text,shift:0,timing:null,rhythm:null,libId:null});
+  if(title) state.title=title;
+  selBar=null; selBlk=null; load(); renderSaved();
+  try{ document.querySelector('.sheet').scrollIntoView({block:'start'}); }catch(e){}
+}
+$('scorein').onchange=async e=>{
+  const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return;
+  const st=$('pdfstat'); st.textContent='Leyendo la partitura…';
+  try{
+    const buf=await f.arrayBuffer(), u8=new Uint8Array(buf);
+    if(u8[0]===0x25&&u8[1]===0x50&&u8[2]===0x44&&u8[3]===0x46){ st.innerHTML='Ese archivo es un PDF. Si es un cifrado (letra con acordes), usa <b>📄 Abrir PDF</b>. Si es una partitura con pentagramas, primero conviértela a MusicXML (ver "Más opciones").'; $('moreopts').open=true; $('scorehelp').open=true; return; }
+    const xml=(u8[0]===0x50&&u8[1]===0x4b)?await unzipScore(buf):new TextDecoder().decode(u8);
+    const sc=readScore(xml), r=scoreToChart(sc);
+    if(!r.text.trim()){ st.textContent='La partitura no tiene notas ni cifrado que pueda leer.'; return; }
+    loadText(r.text,sc.title||(f.name||'').replace(/\.[^.]+$/,''));
+    st.textContent=(r.guessed?'La partitura no traía cifrado: calculé los acordes a partir de las notas. Revísalos y corrígelos con dos toques si hace falta.':'Listo: leí el cifrado de la partitura.')+(r.verses>1?' Incluí las '+r.verses+' estrofas.':r.verses?'':' No traía letra: puse los acordes por compases.');
+    toast('Partitura abierta: '+(state.title||'canción'));
+  }catch(err){ st.textContent=err&&err.message==='timewise'?'Esta partitura está en un formato poco común (MusicXML "timewise"). Ábrela en MuseScore y expórtala de nuevo como MusicXML.':'No pude leer ese archivo. Acordia abre partituras en MusicXML (.musicxml, .xml, .mxl).'; }
 };
 
 /* ---------- atajo de iPhone ---------- */
